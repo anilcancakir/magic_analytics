@@ -266,6 +266,27 @@ void main() {
       },
     );
 
+    test('logEvent restores the identity, page and user property keys an event '
+        'parameter shadowed', () async {
+      final GtmWebDriver driver = _driver();
+      final String origin = web.window.location.origin;
+
+      await driver.setUserId('9b1f0a7e');
+      await driver.setUserProperty('locale', 'tr');
+      await driver.logScreen(name: '/monitors', location: '/monitors');
+      await driver.logEvent('shared_link', <String, Object>{
+        'user_id': 'someone-else',
+        'page_location': 'https://example.com/elsewhere',
+        'user_properties': 'flat',
+      });
+
+      final JSObject cleanup = _dataLayer().last;
+
+      expect(_string(cleanup, 'user_id'), '9b1f0a7e');
+      expect(_string(cleanup, 'page_location'), '$origin/monitors');
+      expect(_string(_object(cleanup, 'user_properties'), 'locale'), 'tr');
+    });
+
     test('logEvent clears a parameter whose default was removed', () async {
       final GtmWebDriver driver = _driver();
 

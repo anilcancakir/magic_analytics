@@ -30,8 +30,9 @@ import 'analytics_driver.dart';
 ///   page's origin, so the real URL (which may carry a token) never leaves.
 ///   The first page's referrer is the origin root, never null.
 /// - `logEvent`: `{event: <name>, ...parameters}`, then a second push that
-///   puts each of those parameter keys back to its default value, or to null
-///   when it has none. The data layer is a merged model, not a queue: without
+///   puts each of those parameter keys back to the value this driver holds
+///   for it (user id, user properties, page fields, default parameters), or
+///   to null when it holds none. The data layer is a merged model, not a queue: without
 ///   that second push a parameter of one event would reach every later event
 ///   that reads the key, and an event parameter named like a default would
 ///   replace the default for good.
@@ -106,10 +107,17 @@ class GtmWebDriver implements AnalyticsDriver {
 
   final String _loaderSrc;
 
-  final Set<String> _userPropertyNames = <String>{};
+  /// The user properties currently pushed, by name.
+  final Map<String, String> _userProperties = <String, String>{};
 
-  /// The default parameters currently pushed, by key; an event restores them.
+  /// The default parameters currently pushed, by key.
   final Map<String, Object> _defaultParams = <String, Object>{};
+
+  /// The page fields of the last page view, by key.
+  final Map<String, String> _pageFields = <String, String>{};
+
+  /// The user id currently pushed, null when signed out.
+  String? _userId;
 
   bool _loaded = false;
 
@@ -125,7 +133,7 @@ class GtmWebDriver implements AnalyticsDriver {
 
     if (parameters.isNotEmpty) {
       _push(<String, Object?>{
-        for (final String key in parameters.keys) key: _defaultParams[key],
+        for (final String key in parameters.keys) key: _heldValue(key),
       });
     }
   }
@@ -136,17 +144,19 @@ class GtmWebDriver implements AnalyticsDriver {
     String? location,
     String? referrer,
   }) async {
-    _send(<String, Object?>{
-      'event': 'page_view',
-      'page_title': name,
-      'page_location': _onOrigin(location ?? '/'),
+    _pageFields
+      ..['page_title'] = name
+      ..['page_location'] = _onOrigin(location ?? '/')
       // Never null: gtag would fall back to `document.referrer`.
-      'page_referrer': _onOrigin(referrer ?? '/'),
-    });
+      ..['page_referrer'] = _onOrigin(referrer ?? '/');
+
+    _send(<String, Object?>{'event': 'page_view', ..._pageFields});
   }
 
   @override
   Future<void> setUserId(String? userId) async {
+    _userId = userId;
+
     final Map<String, Object?> push = <String, Object?>{'user_id': userId};
 
     userId == null ? _clear(push) : _send(push);
@@ -159,13 +169,13 @@ class GtmWebDriver implements AnalyticsDriver {
     };
 
     if (value == null) {
-      _userPropertyNames.remove(name);
+      _userProperties.remove(name);
       _clear(push);
 
       return;
     }
 
-    _userPropertyNames.add(name);
+    _userProperties[name] = value;
     _send(push);
   }
 
@@ -211,15 +221,30 @@ class GtmWebDriver implements AnalyticsDriver {
   Future<void> reset() async {
     _clear(<String, Object?>{
       'user_id': null,
-      if (_userPropertyNames.isNotEmpty)
+      if (_userProperties.isNotEmpty)
         'user_properties': <String, Object?>{
-          for (final String name in _userPropertyNames) name: null,
+          for (final String name in _userProperties.keys) name: null,
         },
       for (final String key in _defaultParams.keys) key: null,
     });
 
-    _userPropertyNames.clear();
+    _userId = null;
+    _userProperties.clear();
     _defaultParams.clear();
+  }
+
+  /// The value this driver holds for [key] outside any event: the user id,
+  /// the user properties, a page field or a default parameter; null for an
+  /// event-only key. An event's cleanup push writes it back.
+  Object? _heldValue(String key) {
+    return switch (key) {
+      'user_id' => _userId,
+      'user_properties' =>
+        _userProperties.isEmpty
+            ? null
+            : Map<String, Object>.of(_userProperties),
+      _ => _pageFields[key] ?? _defaultParams[key],
+    };
   }
 
   /// Push [data], loading the container first when this is the first send.

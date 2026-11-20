@@ -42,12 +42,12 @@ Without `analytics.enabled: true` the provider skips all of this and binds `Null
 | Call | Data layer push |
 |:-----|:----------------|
 | `screen` | `{event: 'page_view', page_title, page_location, page_referrer}`, the locations built from the origin and the route pattern; the first page's referrer is the origin root, never `null` |
-| `track` | `{event: <name>, ...parameters}`, then `{<each parameter key>: <its default or null>}`, so the parameters stay with this event (see below) |
+| `track` | `{event: <name>, ...parameters}`, then `{<each parameter key>: <the value the driver holds for it, or null>}`, so the parameters stay with this event (see below) |
 | `identify` | `{user_id: <id>}`; `null` on reset |
 | `setUserProperties` | `{user_properties: {<name>: <value>}}`, nested |
 | `setDefaultParams` | The keys flat; the data layer keeps them for every later push |
 
-The data layer is a merged model, not a queue: a key keeps its value for every later push until something pushes it again. Without the second push after `track`, a `monitor_type` sent with one event would reach every later event whose tag reads that variable, and an event parameter named like a default parameter (`plan` in a `plan_changed` event) would replace the default for good. The driver puts each key back to its default parameter value, or to `null` when it has none.
+The data layer is a merged model, not a queue: a key keeps its value for every later push until something pushes it again. Without the second push after `track`, a `monitor_type` sent with one event would reach every later event whose tag reads that variable, and an event parameter named like a default parameter (`plan` in a `plan_changed` event) would replace the default for good. The driver puts each key back to the value it holds outside events (the user id, the user properties, the last page view's fields or a default parameter), or to `null` when it holds none.
 
 `page_location` is the page's origin plus the route PATTERN, so the real URL, which may carry a token, never leaves. The container's GA4 configuration must set `send_page_view` to `false`, because this driver pushes the page views itself.
 
