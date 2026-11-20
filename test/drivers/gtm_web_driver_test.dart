@@ -287,6 +287,26 @@ void main() {
       expect(_string(_object(cleanup, 'user_properties'), 'locale'), 'tr');
     });
 
+    test(
+      'logEvent restores the value pushed last, whichever call pushed it',
+      () async {
+        final GtmWebDriver driver = _driver();
+
+        await driver.logScreen(name: '/screen', location: '/screen');
+        await driver.setDefaultParams(<String, Object?>{
+          'page_location': 'https://example.test/default',
+        });
+        await driver.logEvent('shared_link', <String, Object>{
+          'page_location': 'https://example.test/event',
+        });
+
+        expect(
+          _string(_dataLayer().last, 'page_location'),
+          'https://example.test/default',
+        );
+      },
+    );
+
     test('logEvent clears a parameter whose default was removed', () async {
       final GtmWebDriver driver = _driver();
 

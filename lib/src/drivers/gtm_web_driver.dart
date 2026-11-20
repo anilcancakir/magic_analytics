@@ -110,14 +110,13 @@ class GtmWebDriver implements AnalyticsDriver {
   /// The user properties currently pushed, by name.
   final Map<String, String> _userProperties = <String, String>{};
 
-  /// The default parameters currently pushed, by key.
-  final Map<String, Object> _defaultParams = <String, Object>{};
+  /// The keys of the default parameters currently pushed; `reset` nulls them.
+  final Set<String> _defaultParamNames = <String>{};
 
-  /// The page fields of the last page view, by key.
-  final Map<String, String> _pageFields = <String, String>{};
-
-  /// The user id currently pushed, null when signed out.
-  String? _userId;
+  /// The last value pushed outside an event for each flat key (the user id,
+  /// the page fields, the default parameters), so it mirrors the data layer
+  /// model; a key pushed as null is absent.
+  final Map<String, Object> _held = <String, Object>{};
 
   bool _loaded = false;
 
@@ -144,21 +143,22 @@ class GtmWebDriver implements AnalyticsDriver {
     String? location,
     String? referrer,
   }) async {
-    _pageFields
-      ..['page_title'] = name
-      ..['page_location'] = _onOrigin(location ?? '/')
+    final Map<String, String> fields = <String, String>{
+      'page_title': name,
+      'page_location': _onOrigin(location ?? '/'),
       // Never null: gtag would fall back to `document.referrer`.
-      ..['page_referrer'] = _onOrigin(referrer ?? '/');
+      'page_referrer': _onOrigin(referrer ?? '/'),
+    };
 
-    _send(<String, Object?>{'event': 'page_view', ..._pageFields});
+    _hold(fields);
+    _send(<String, Object?>{'event': 'page_view', ...fields});
   }
 
   @override
   Future<void> setUserId(String? userId) async {
-    _userId = userId;
-
     final Map<String, Object?> push = <String, Object?>{'user_id': userId};
 
+    _hold(push);
     userId == null ? _clear(push) : _send(push);
   }
 
@@ -182,14 +182,12 @@ class GtmWebDriver implements AnalyticsDriver {
   @override
   Future<void> setDefaultParams(Map<String, Object?> parameters) async {
     for (final MapEntry<String, Object?> entry in parameters.entries) {
-      final Object? value = entry.value;
-
-      if (value == null) {
-        _defaultParams.remove(entry.key);
-      } else {
-        _defaultParams[entry.key] = value;
-      }
+      entry.value == null
+          ? _defaultParamNames.remove(entry.key)
+          : _defaultParamNames.add(entry.key);
     }
+
+    _hold(parameters);
 
     // A set of nulls only removes keys, so it must not load the container.
     parameters.values.any((value) => value != null)
@@ -219,32 +217,45 @@ class GtmWebDriver implements AnalyticsDriver {
 
   @override
   Future<void> reset() async {
-    _clear(<String, Object?>{
+    final Map<String, Object?> push = <String, Object?>{
       'user_id': null,
       if (_userProperties.isNotEmpty)
         'user_properties': <String, Object?>{
           for (final String name in _userProperties.keys) name: null,
         },
-      for (final String key in _defaultParams.keys) key: null,
-    });
+      for (final String key in _defaultParamNames) key: null,
+    };
 
-    _userId = null;
+    _hold(push);
+    _clear(push);
     _userProperties.clear();
-    _defaultParams.clear();
+    _defaultParamNames.clear();
   }
 
-  /// The value this driver holds for [key] outside any event: the user id,
-  /// the user properties, a page field or a default parameter; null for an
-  /// event-only key. An event's cleanup push writes it back.
+  /// Record the flat keys of [data], a push made outside an event.
+  void _hold(Map<String, Object?> data) {
+    for (final MapEntry<String, Object?> entry in data.entries) {
+      final Object? value = entry.value;
+
+      if (entry.key == 'user_properties') {
+        continue;
+      }
+
+      value == null ? _held.remove(entry.key) : _held[entry.key] = value;
+    }
+  }
+
+  /// The value the data layer held for [key] before an event shadowed it:
+  /// the user properties for `user_properties`, the last value pushed outside
+  /// an event otherwise; null for an event-only key.
   Object? _heldValue(String key) {
-    return switch (key) {
-      'user_id' => _userId,
-      'user_properties' =>
-        _userProperties.isEmpty
-            ? null
-            : Map<String, Object>.of(_userProperties),
-      _ => _pageFields[key] ?? _defaultParams[key],
-    };
+    if (key == 'user_properties') {
+      return _userProperties.isEmpty
+          ? null
+          : Map<String, Object>.of(_userProperties);
+    }
+
+    return _held[key];
   }
 
   /// Push [data], loading the container first when this is the first send.

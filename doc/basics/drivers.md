@@ -47,7 +47,7 @@ Without `analytics.enabled: true` the provider skips all of this and binds `Null
 | `setUserProperties` | `{user_properties: {<name>: <value>}}`, nested |
 | `setDefaultParams` | The keys flat; the data layer keeps them for every later push |
 
-The data layer is a merged model, not a queue: a key keeps its value for every later push until something pushes it again. Without the second push after `track`, a `monitor_type` sent with one event would reach every later event whose tag reads that variable, and an event parameter named like a default parameter (`plan` in a `plan_changed` event) would replace the default for good. The driver puts each key back to the value it holds outside events (the user id, the user properties, the last page view's fields or a default parameter), or to `null` when it holds none.
+The data layer is a merged model, not a queue: a key keeps its value for every later push until something pushes it again. Without the second push after `track`, a `monitor_type` sent with one event would reach every later event whose tag reads that variable, and an event parameter named like a default parameter (`plan` in a `plan_changed` event) would replace the default for good. The driver puts each key back to the value last pushed for it outside an event (by `identify`, `setUserProperties`, `screen` or `setDefaultParams`, whichever came last), or to `null` when there is none.
 
 `page_location` is the page's origin plus the route PATTERN, so the real URL, which may carry a token, never leaves. The container's GA4 configuration must set `send_page_view` to `false`, because this driver pushes the page views itself.
 
