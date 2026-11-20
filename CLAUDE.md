@@ -4,7 +4,7 @@
 
 Analytics for the Magic Framework: one `Analytics` facade over a GTM driver on web (GA4 through a first-party gateway path), a Firebase driver on iOS and Android, and a null driver when nothing is configured. Consent for ads is always denied; the package is inert until the host sets its IDs.
 
-**Version:** 1.0.0 · **Dart:** >=3.13.0 · **Flutter:** >=3.47.0
+**Version:** 1.0.1 · **Dart:** >=3.13.0 · **Flutter:** >=3.47.0
 
 ## Commands
 
