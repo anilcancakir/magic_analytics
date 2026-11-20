@@ -78,7 +78,7 @@ Red, green, refactor for every feature, fix or refactor: no production code with
 
 1. Open a `release:` PR that bumps `pubspec.yaml`, `skills/magic-analytics/SKILL.md` and the `Version:` line above, and promotes `[Unreleased]` in `CHANGELOG.md`.
 2. After it merges, tag the merge commit with the bare version (`git tag 1.0.0 <merge-sha> && git push origin 1.0.0`, no `v`). `publish.yml` runs from the tag; the pub.dev Admin tab holds repository `anilcancakir/magic_analytics`, tag pattern `{{version}}` and push events only.
-3. A failed `Validate` is fixed forward: delete the tag (`git push --delete origin <tag>` and `git tag -d <tag>`), fix it on a PR and tag the new merge commit. If only `github-release` fails after pub.dev accepted the version, use "Re-run failed jobs" (never "Re-run all jobs") or run `gh release create <tag> --title <tag> --latest --verify-tag --notes-file <file>`.
+3. A failed `Validate` is fixed forward: delete the tag (`git push --delete origin <tag>` and `git tag -d <tag>`), fix it on a PR and tag the new merge commit. If only `github-release` fails after pub.dev accepted the version, use "Re-run failed jobs" (never "Re-run all jobs") or run `gh release create <tag> --title <tag> --latest --verify-tag --notes-file <file>` and then `gh workflow run dispatch-to-registry.yml --ref <tag>`, because the skipped `registry` job does not resume on its own.
 
 ## CI
 
