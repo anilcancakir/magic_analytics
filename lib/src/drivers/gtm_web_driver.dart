@@ -150,16 +150,14 @@ class GtmWebDriver implements AnalyticsDriver {
       'page_referrer': _onOrigin(referrer ?? '/'),
     };
 
-    _hold(fields);
-    _send(<String, Object?>{'event': 'page_view', ...fields});
+    _send(<String, Object?>{'event': 'page_view', ...fields}, hold: true);
   }
 
   @override
   Future<void> setUserId(String? userId) async {
     final Map<String, Object?> push = <String, Object?>{'user_id': userId};
 
-    _hold(push);
-    userId == null ? _clear(push) : _send(push);
+    userId == null ? _clear(push, hold: true) : _send(push, hold: true);
   }
 
   @override
@@ -170,13 +168,13 @@ class GtmWebDriver implements AnalyticsDriver {
 
     if (value == null) {
       _userProperties.remove(name);
-      _clear(push);
+      _clear(push, hold: true);
 
       return;
     }
 
     _userProperties[name] = value;
-    _send(push);
+    _send(push, hold: true);
   }
 
   @override
@@ -187,12 +185,10 @@ class GtmWebDriver implements AnalyticsDriver {
           : _defaultParamNames.add(entry.key);
     }
 
-    _hold(parameters);
-
     // A set of nulls only removes keys, so it must not load the container.
     parameters.values.any((value) => value != null)
-        ? _send(parameters)
-        : _clear(parameters);
+        ? _send(parameters, hold: true)
+        : _clear(parameters, hold: true);
   }
 
   @override
@@ -226,18 +222,40 @@ class GtmWebDriver implements AnalyticsDriver {
       for (final String key in _defaultParamNames) key: null,
     };
 
-    _hold(push);
-    _clear(push);
+    _clear(push, hold: true);
     _userProperties.clear();
     _defaultParamNames.clear();
   }
 
-  /// Record the flat keys of [data], a push made outside an event.
+  /// Record [data], a push that reached the data layer outside an event, so
+  /// `_held` keeps mirroring the model: flat keys by value, `user_properties`
+  /// merged key by key as the data layer merges it.
   void _hold(Map<String, Object?> data) {
     for (final MapEntry<String, Object?> entry in data.entries) {
       final Object? value = entry.value;
 
-      if (entry.key == 'user_properties') {
+      // The event name is per push, never part of the model a later event reads.
+      if (entry.key == 'event') {
+        continue;
+      }
+
+      if (entry.key == 'user_properties' && value is Map<String, Object?>) {
+        final Map<String, Object> properties = <String, Object>{
+          ...?_held['user_properties'] as Map<String, Object>?,
+        };
+
+        for (final MapEntry<String, Object?> property in value.entries) {
+          final Object? propertyValue = property.value;
+
+          propertyValue == null
+              ? properties.remove(property.key)
+              : properties[property.key] = propertyValue;
+        }
+
+        properties.isEmpty
+            ? _held.remove('user_properties')
+            : _held['user_properties'] = properties;
+
         continue;
       }
 
@@ -245,35 +263,37 @@ class GtmWebDriver implements AnalyticsDriver {
     }
   }
 
-  /// The value the data layer held for [key] before an event shadowed it:
-  /// the user properties for `user_properties`, the last value pushed outside
-  /// an event otherwise; null for an event-only key.
-  Object? _heldValue(String key) {
-    if (key == 'user_properties') {
-      return _userProperties.isEmpty
-          ? null
-          : Map<String, Object>.of(_userProperties);
-    }
-
-    return _held[key];
-  }
+  /// The value the data layer held for [key] before an event shadowed it;
+  /// null for an event-only key.
+  Object? _heldValue(String key) => _held[key];
 
   /// Push [data], loading the container first when this is the first send.
-  /// Does nothing while opted out.
-  void _send(Map<String, Object?> data) {
+  /// Does nothing while opted out. [hold] records a push made outside an
+  /// event once it has reached the data layer.
+  void _send(Map<String, Object?> data, {bool hold = false}) {
     if (_optedOut) {
       return;
     }
 
     _ensureLoaded();
     _push(data);
+
+    if (hold) {
+      _hold(data);
+    }
   }
 
   /// Push [data] only when the container is already loaded: it removes values,
-  /// so it is no reason to load one.
-  void _clear(Map<String, Object?> data) {
-    if (_loaded) {
-      _push(data);
+  /// so it is no reason to load one. [hold] as in [_send].
+  void _clear(Map<String, Object?> data, {bool hold = false}) {
+    if (!_loaded) {
+      return;
+    }
+
+    _push(data);
+
+    if (hold) {
+      _hold(data);
     }
   }
 
@@ -283,6 +303,13 @@ class GtmWebDriver implements AnalyticsDriver {
     }
 
     _loaded = true;
+
+    // The bootstrap seeds both page fields with the origin root (below).
+    final String originRoot = _onOrigin('/');
+
+    _held
+      ..putIfAbsent('page_location', () => originRoot)
+      ..putIfAbsent('page_referrer', () => originRoot);
 
     // A second driver, or a second first use, must not inject twice.
     if (web.document.querySelector('script[src="$_loaderSrc"]') != null) {

@@ -307,6 +307,38 @@ void main() {
       },
     );
 
+    test(
+      'logEvent never restores a value that was dropped while opted out',
+      () async {
+        final GtmWebDriver driver = _driver();
+
+        await driver.logScreen(name: '/monitors');
+        await driver.setOptOut(true);
+        await driver.setDefaultParams(<String, Object?>{'plan': 'pro'});
+        await driver.setOptOut(false);
+        await driver.logEvent('plan_changed', <String, Object>{'plan': 'none'});
+
+        final JSObject cleanup = _dataLayer().last;
+
+        expect(cleanup.has('plan'), isTrue);
+        expect(cleanup['plan'], isNull);
+      },
+    );
+
+    test(
+      'logEvent before the first page view restores the origin seed',
+      () async {
+        await _driver().logEvent('shared_link', <String, Object>{
+          'page_location': 'https://example.test/event',
+        });
+
+        expect(
+          _string(_dataLayer().last, 'page_location'),
+          '${web.window.location.origin}/',
+        );
+      },
+    );
+
     test('logEvent clears a parameter whose default was removed', () async {
       final GtmWebDriver driver = _driver();
 
