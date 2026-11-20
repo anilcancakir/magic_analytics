@@ -38,7 +38,7 @@ The installer publishes `lib/config/analytics.dart` (reads `ANALYTICS_ENABLED`, 
 - `AnalyticsManager(driver)`: validates against GA4 limits (assert in debug, drop with a log in release), scrubs, gates on opt-out and sends in call order. Constants `maxNameLength` 40, `maxParameters` 25, `maxParameterValueLength` 100, `maxUserPropertyNameLength` 24, `maxUserPropertyValueLength` 36, `maxUserIdLength` 256.
 - `AnalyticsServiceProvider(app)`: `register()` binds `analytics`; `boot()` adds `AnalyticsNavigatorObserver` and resets analytics when the signed-in user signs out or changes.
 - `AnalyticsDriver`: the transport contract. `GtmWebDriver` (web), `FirebaseDriver` (iOS, Android), `NullDriver`; `createAnalyticsDriver(config)` picks one by platform.
-- `AnalyticsNavigatorObserver`: a page view per named page, titled and located by the route pattern.
+- `AnalyticsNavigatorObserver`: a page view per named page, titled by the route name (the pattern when the route has none) and located by the route pattern.
 - `UrlScrubber.scrub(text)`: masks secret query values, route-bound token segments and email addresses as `[Filtered]`.
 - `FakeAnalytics`, `RecordedAnalyticsCall`, `RecordedCallKind`: the recording driver, `assertTracked`, `assertNotTracked`, `assertNothingSent`, `events`, `screens`, `calls`.
 
@@ -55,7 +55,7 @@ Web through GTM, iOS and Android through Firebase. Firebase is never initialised
 - Never serve GTM from `googletagmanager.com`: set both `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`, and proxy the path to `GTM-XXXXXXX.fps.goog`. Set `send_page_view` to `false` in the container, and add a GA4 Event tag (event name `{{Event}}`) on a Custom Event trigger with data layer variables, a shared Event Settings Variable and `analytics_storage` required on both tags: the Google tag alone sends no custom event.
 - Leave `firebase_options` `null` on web; never initialise Firebase there.
 - Ads consent is always denied; nothing grants it. The opt-out is in memory: persist it and call `Analytics.setOptOut` before the first page view.
-- In tests call `Analytics.fake()` after the provider registers and inside `testWidgets` bodies, and `Analytics.unfake()` plus `MagicRouter.reset()` in `tearDown`.
+- In tests call `Analytics.fake()` after the provider registers (inside the body, not `setUp`, of a `testWidgets` test), and `Analytics.unfake()` plus `MagicRouter.reset()` in `tearDown`.
 
 ## Docs
 

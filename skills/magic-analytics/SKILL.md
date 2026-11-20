@@ -1,6 +1,6 @@
 ---
 name: magic-analytics
-description: "Send GA4 analytics from a Magic app: GTM on web, Firebase on mobile, one Analytics facade, consent denied."
+description: "Send GA4 analytics from a Magic app: GTM on web, Firebase on mobile, one Analytics facade, ad signals always denied."
 version: 1.0.0
 when_to_use: "Use when code imports package:magic_analytics or touches Analytics, AnalyticsServiceProvider or analyticsConfig in a Magic app."
 ---
@@ -32,7 +32,7 @@ Requires Dart >=3.13, Flutter >=3.47 and `magic` ^1.0.0, with `firebase_core` an
 
 1. Register `AnalyticsServiceProvider` in the `providers` list of `lib/config/app.dart`, after the error reporting providers. `boot()` adds the page view observer to `MagicRouter`, which refuses one after it has built its `routerConfig`.
 2. The provider resets analytics when the signed-in user signs out or changes, keyed on the user id, so a team switch keeps the identity. It never identifies anyone: call `Analytics.identify` yourself with the user's UUID, never an email.
-3. `AnalyticsNavigatorObserver` reports the route pattern (`/monitors/:id`, never `/monitors/42`) as title and location, so no id or token leaves. A page without a name is not a page view.
+3. `AnalyticsNavigatorObserver` reports the route name as the title (the pattern when the route has none) and the route pattern (`/monitors/:id`, never `/monitors/42`) as the location, so no id or token leaves. A page without a name is not a page view.
 
 ## Facade rules
 
@@ -96,7 +96,7 @@ Future<void> restoreConsent(bool storedOptOut) async {
 
 ## Testing
 
-No mocking library is needed. `Analytics.fake()` binds the real manager over a recording `FakeAnalytics`; call it after the provider registers, and inside the body of a `testWidgets` test so the send queue is created in its zone. `Analytics.unfake()` and `MagicRouter.reset()` go in `tearDown`.
+No mocking library is needed. `Analytics.fake()` binds the real manager over a recording `FakeAnalytics`; call it after the provider registers, and in a `testWidgets` test inside the body (not `setUp`) so the send queue is created in its zone. `Analytics.unfake()` and `MagicRouter.reset()` go in `tearDown`.
 
 ```dart
 import 'package:flutter_test/flutter_test.dart';

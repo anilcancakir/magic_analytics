@@ -10,7 +10,8 @@ Analytics for the Magic Framework: one `Analytics` facade over a GTM driver on w
 
 | Command | Description |
 |---------|-------------|
-| `flutter test --coverage` | Run all tests with coverage |
+| `flutter test --coverage` | Run the VM tests with coverage |
+| `flutter test --platform chrome test/drivers/gtm_web_driver_test.dart` | Run the `@TestOn('browser')` GtmWebDriver tests the VM run skips; run it after any change to the GTM driver |
 | `flutter analyze --no-fatal-infos` | Static analysis |
 | `dart format .` | Format all code |
 | `flutter pub publish --dry-run` | Pre-publish check |
@@ -59,7 +60,7 @@ Red, green, refactor for every feature, fix or refactor: no production code with
 ## Testing
 
 - No mocking library: fake through contract inheritance, or `Analytics.fake()`
-- Tests mirror `lib/src/` and import from `package:magic_analytics/magic_analytics.dart`
+- Tests mirror `lib/src/` and import from `package:magic_analytics/magic_analytics.dart`; driver tests import `package:magic_analytics/src/drivers/...`, since the barrel does not export the drivers
 - `setUp` runs `MagicApp.reset(); Magic.flush();`; `tearDown` calls `Analytics.unfake()` and `MagicRouter.reset()`
 
 ## Key Gotchas
@@ -81,7 +82,7 @@ Red, green, refactor for every feature, fix or refactor: no production code with
 
 ## CI
 
-- `ci.yml`: push/PR → `flutter pub get` → `flutter analyze --no-fatal-infos` → `dart format --set-exit-if-changed` → `flutter test --coverage` → codecov upload
+- `ci.yml`: push/PR → `flutter pub get` → `flutter analyze --no-fatal-infos` → `dart format --set-exit-if-changed` → `flutter test --coverage` → the Chrome run of the GTM driver tests → codecov upload
 - `changelog.yml`: a PR that changes `lib/`, `install.yaml` or `assets/stubs/` must also change `CHANGELOG.md`; Dependabot, `release:` PRs and the `skip-changelog` label are exempt
 - `docs-link-check.yml`: every PR runs `python3 tool/check-docs.py` and an offline lychee pass; Mondays an external-link pass
 - `publish.yml`: tag on master → version stamps (tag, pubspec, skill) → analyze, format, test, dry-run, pana 160/160, changelog section → OIDC publish → GitHub Release → registry sync (`dispatch-to-registry.yml`, needs the `REGISTRY_BOT_*` secrets)

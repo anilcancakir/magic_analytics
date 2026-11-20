@@ -89,7 +89,7 @@ GA4 limits: names of 40 characters, 25 parameters with the defaults, string valu
 
 ## Page views
 
-`AnalyticsServiceProvider` adds an observer to `MagicRouter` that reports each named page by its route PATTERN (`/monitors/:id`, never `/monitors/42`), as title and location. No id, token or email leaves, and every monitor's page counts as one page. The provider also resets analytics when the signed-in user signs out or changes.
+`AnalyticsServiceProvider` adds an observer to `MagicRouter` that reports each named page with its route name as the title (the pattern when the route has no name) and its route pattern (`/monitors/:id`, never `/monitors/42`) as the location. No id, token or email leaves, and every monitor's page counts as one page. The provider also resets analytics when the signed-in user signs out or changes.
 
 A view the router does not see (a tab inside one page, say) goes through `screen` by hand:
 
@@ -166,7 +166,7 @@ The fake sits behind the real manager, so it records only what passed validation
 | `events`, `screens`, `calls` | The recorded calls, each with the user id, user properties and defaults held at that moment |
 | `userId`, `userProperties`, `defaultParams`, `optedOut` | The identity the driver holds now |
 
-Call `Analytics.fake()` after the provider registers, and inside the body of a `testWidgets` test: `register()` replaces an earlier fake, and the send queue needs the widget test's zone.
+Call `Analytics.fake()` after the provider registers, since `register()` replaces an earlier fake. In a `testWidgets` test call it inside the body, not in `setUp`: the send queue needs the widget test's zone.
 
 ## For AI coding agents
 
@@ -181,7 +181,7 @@ Rules for an agent writing code against this package. Each one is a mistake the 
 | Leave `firebase_options` `null` on web | Firebase is never initialised there |
 | Persist the opt-out and call `setOptOut` before the first page view | It is in memory only |
 | Send strings and numbers inside the GA4 limits | A call that breaks one fails an assert in debug and is dropped in release |
-| Call `Analytics.fake()` after the provider registers and inside `testWidgets` bodies | `register()` would replace an earlier fake, and the send queue needs the widget test's zone |
+| Call `Analytics.fake()` after the provider registers, and inside the body (not `setUp`) of a `testWidgets` test | `register()` would replace an earlier fake, and the send queue needs the widget test's zone |
 
 ## Dependencies
 
