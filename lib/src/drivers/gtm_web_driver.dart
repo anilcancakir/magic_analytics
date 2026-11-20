@@ -29,7 +29,13 @@ import 'analytics_driver.dart';
 ///   page_referrer}`, both locations built from the route PATTERN on the
 ///   page's origin, so the real URL (which may carry a token) never leaves.
 ///   The first page's referrer is the origin root, never null.
-/// - `logEvent`: `{event: <name>, ...parameters}`.
+/// - `logEvent`: `{event: <name>, ...parameters}`, then a second push that
+///   puts each of those parameter keys back to the value this driver holds
+///   for it (user id, user properties, page fields, default parameters), or
+///   to null when it holds none. The data layer is a merged model, not a queue: without
+///   that second push a parameter of one event would reach every later event
+///   that reads the key, and an event parameter named like a default would
+///   replace the default for good.
 /// - `setUserId`: `{user_id: <id or null>}`.
 /// - `setUserProperty`: `{user_properties: {<name>: <value or null>}}`,
 ///   nested, as the data layer merges it key by key.
@@ -101,9 +107,16 @@ class GtmWebDriver implements AnalyticsDriver {
 
   final String _loaderSrc;
 
-  final Set<String> _userPropertyNames = <String>{};
+  /// The user properties currently pushed, by name.
+  final Map<String, String> _userProperties = <String, String>{};
 
+  /// The keys of the default parameters currently pushed; `reset` nulls them.
   final Set<String> _defaultParamNames = <String>{};
+
+  /// The last value pushed outside an event for each flat key (the user id,
+  /// the page fields, the default parameters), so it mirrors the data layer
+  /// model; a key pushed as null is absent.
+  final Map<String, Object> _held = <String, Object>{};
 
   bool _loaded = false;
 
@@ -111,7 +124,17 @@ class GtmWebDriver implements AnalyticsDriver {
 
   @override
   Future<void> logEvent(String name, Map<String, Object> parameters) async {
+    if (_optedOut) {
+      return;
+    }
+
     _send(<String, Object?>{...parameters, 'event': name});
+
+    if (parameters.isNotEmpty) {
+      _push(<String, Object?>{
+        for (final String key in parameters.keys) key: _heldValue(key),
+      });
+    }
   }
 
   @override
@@ -120,20 +143,21 @@ class GtmWebDriver implements AnalyticsDriver {
     String? location,
     String? referrer,
   }) async {
-    _send(<String, Object?>{
-      'event': 'page_view',
+    final Map<String, String> fields = <String, String>{
       'page_title': name,
       'page_location': _onOrigin(location ?? '/'),
       // Never null: gtag would fall back to `document.referrer`.
       'page_referrer': _onOrigin(referrer ?? '/'),
-    });
+    };
+
+    _send(<String, Object?>{'event': 'page_view', ...fields}, hold: true);
   }
 
   @override
   Future<void> setUserId(String? userId) async {
     final Map<String, Object?> push = <String, Object?>{'user_id': userId};
 
-    userId == null ? _clear(push) : _send(push);
+    userId == null ? _clear(push, hold: true) : _send(push, hold: true);
   }
 
   @override
@@ -143,30 +167,28 @@ class GtmWebDriver implements AnalyticsDriver {
     };
 
     if (value == null) {
-      _userPropertyNames.remove(name);
-      _clear(push);
+      _userProperties.remove(name);
+      _clear(push, hold: true);
 
       return;
     }
 
-    _userPropertyNames.add(name);
-    _send(push);
+    _userProperties[name] = value;
+    _send(push, hold: true);
   }
 
   @override
   Future<void> setDefaultParams(Map<String, Object?> parameters) async {
     for (final MapEntry<String, Object?> entry in parameters.entries) {
-      if (entry.value == null) {
-        _defaultParamNames.remove(entry.key);
-      } else {
-        _defaultParamNames.add(entry.key);
-      }
+      entry.value == null
+          ? _defaultParamNames.remove(entry.key)
+          : _defaultParamNames.add(entry.key);
     }
 
     // A set of nulls only removes keys, so it must not load the container.
     parameters.values.any((value) => value != null)
-        ? _send(parameters)
-        : _clear(parameters);
+        ? _send(parameters, hold: true)
+        : _clear(parameters, hold: true);
   }
 
   @override
@@ -191,35 +213,89 @@ class GtmWebDriver implements AnalyticsDriver {
 
   @override
   Future<void> reset() async {
-    _clear(<String, Object?>{
+    final Map<String, Object?> push = <String, Object?>{
       'user_id': null,
-      if (_userPropertyNames.isNotEmpty)
+      if (_userProperties.isNotEmpty)
         'user_properties': <String, Object?>{
-          for (final String name in _userPropertyNames) name: null,
+          for (final String name in _userProperties.keys) name: null,
         },
       for (final String key in _defaultParamNames) key: null,
-    });
+    };
 
-    _userPropertyNames.clear();
+    _clear(push, hold: true);
+    _userProperties.clear();
     _defaultParamNames.clear();
   }
 
+  /// Record [data], a push that reached the data layer outside an event, so
+  /// `_held` keeps mirroring the model: flat keys by value, `user_properties`
+  /// merged key by key as the data layer merges it.
+  void _hold(Map<String, Object?> data) {
+    for (final MapEntry<String, Object?> entry in data.entries) {
+      final Object? value = entry.value;
+
+      // The event name is per push, never part of the model a later event reads.
+      if (entry.key == 'event') {
+        continue;
+      }
+
+      if (entry.key == 'user_properties' && value is Map<String, Object?>) {
+        // A flat value held under the same key is replaced, not merged into.
+        final Object? previous = _held['user_properties'];
+        final Map<String, Object> properties = <String, Object>{
+          if (previous is Map<String, Object>) ...previous,
+        };
+
+        for (final MapEntry<String, Object?> property in value.entries) {
+          final Object? propertyValue = property.value;
+
+          propertyValue == null
+              ? properties.remove(property.key)
+              : properties[property.key] = propertyValue;
+        }
+
+        properties.isEmpty
+            ? _held.remove('user_properties')
+            : _held['user_properties'] = properties;
+
+        continue;
+      }
+
+      value == null ? _held.remove(entry.key) : _held[entry.key] = value;
+    }
+  }
+
+  /// The value the data layer held for [key] before an event shadowed it;
+  /// null for an event-only key.
+  Object? _heldValue(String key) => _held[key];
+
   /// Push [data], loading the container first when this is the first send.
-  /// Does nothing while opted out.
-  void _send(Map<String, Object?> data) {
+  /// Does nothing while opted out. [hold] records a push made outside an
+  /// event once it has reached the data layer.
+  void _send(Map<String, Object?> data, {bool hold = false}) {
     if (_optedOut) {
       return;
     }
 
     _ensureLoaded();
     _push(data);
+
+    if (hold) {
+      _hold(data);
+    }
   }
 
   /// Push [data] only when the container is already loaded: it removes values,
-  /// so it is no reason to load one.
-  void _clear(Map<String, Object?> data) {
-    if (_loaded) {
-      _push(data);
+  /// so it is no reason to load one. [hold] as in [_send].
+  void _clear(Map<String, Object?> data, {bool hold = false}) {
+    if (!_loaded) {
+      return;
+    }
+
+    _push(data);
+
+    if (hold) {
+      _hold(data);
     }
   }
 
@@ -229,6 +305,13 @@ class GtmWebDriver implements AnalyticsDriver {
     }
 
     _loaded = true;
+
+    // The bootstrap seeds both page fields with the origin root (below).
+    final String originRoot = _onOrigin('/');
+
+    _held
+      ..putIfAbsent('page_location', () => originRoot)
+      ..putIfAbsent('page_referrer', () => originRoot);
 
     // A second driver, or a second first use, must not inject twice.
     if (web.document.querySelector('script[src="$_loaderSrc"]') != null) {
