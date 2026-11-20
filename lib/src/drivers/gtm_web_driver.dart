@@ -29,7 +29,12 @@ import 'analytics_driver.dart';
 ///   page_referrer}`, both locations built from the route PATTERN on the
 ///   page's origin, so the real URL (which may carry a token) never leaves.
 ///   The first page's referrer is the origin root, never null.
-/// - `logEvent`: `{event: <name>, ...parameters}`.
+/// - `logEvent`: `{event: <name>, ...parameters}`, then a second push that
+///   puts each of those parameter keys back to its default value, or to null
+///   when it has none. The data layer is a merged model, not a queue: without
+///   that second push a parameter of one event would reach every later event
+///   that reads the key, and an event parameter named like a default would
+///   replace the default for good.
 /// - `setUserId`: `{user_id: <id or null>}`.
 /// - `setUserProperty`: `{user_properties: {<name>: <value or null>}}`,
 ///   nested, as the data layer merges it key by key.
@@ -103,7 +108,8 @@ class GtmWebDriver implements AnalyticsDriver {
 
   final Set<String> _userPropertyNames = <String>{};
 
-  final Set<String> _defaultParamNames = <String>{};
+  /// The default parameters currently pushed, by key; an event restores them.
+  final Map<String, Object> _defaultParams = <String, Object>{};
 
   bool _loaded = false;
 
@@ -111,7 +117,17 @@ class GtmWebDriver implements AnalyticsDriver {
 
   @override
   Future<void> logEvent(String name, Map<String, Object> parameters) async {
+    if (_optedOut) {
+      return;
+    }
+
     _send(<String, Object?>{...parameters, 'event': name});
+
+    if (parameters.isNotEmpty) {
+      _push(<String, Object?>{
+        for (final String key in parameters.keys) key: _defaultParams[key],
+      });
+    }
   }
 
   @override
@@ -156,10 +172,12 @@ class GtmWebDriver implements AnalyticsDriver {
   @override
   Future<void> setDefaultParams(Map<String, Object?> parameters) async {
     for (final MapEntry<String, Object?> entry in parameters.entries) {
-      if (entry.value == null) {
-        _defaultParamNames.remove(entry.key);
+      final Object? value = entry.value;
+
+      if (value == null) {
+        _defaultParams.remove(entry.key);
       } else {
-        _defaultParamNames.add(entry.key);
+        _defaultParams[entry.key] = value;
       }
     }
 
@@ -197,11 +215,11 @@ class GtmWebDriver implements AnalyticsDriver {
         'user_properties': <String, Object?>{
           for (final String name in _userPropertyNames) name: null,
         },
-      for (final String key in _defaultParamNames) key: null,
+      for (final String key in _defaultParams.keys) key: null,
     });
 
     _userPropertyNames.clear();
-    _defaultParamNames.clear();
+    _defaultParams.clear();
   }
 
   /// Push [data], loading the container first when this is the first send.

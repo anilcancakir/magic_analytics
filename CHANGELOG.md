@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Event parameters no longer leak into later events on web.** The GTM data layer merges every push into one model, so a parameter sent with one `track` call stayed set for every later event, and an event parameter named like a default parameter replaced the default. `GtmWebDriver` now follows each event with a push that returns its parameter keys to their default value, or to `null`. (`lib/src/drivers/gtm_web_driver.dart`)
+
 ## [1.0.0] - 2026-11-20
 
 ### Added

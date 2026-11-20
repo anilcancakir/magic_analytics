@@ -46,6 +46,10 @@ JSObject _object(JSObject object, String key) => object[key]! as JSObject;
 JSObject _lastWith(String key) =>
     _dataLayer().lastWhere((entry) => entry.has(key));
 
+/// The last `dataLayer` entry pushed for the event [name].
+JSObject _eventEntry(String name) =>
+    _dataLayer().lastWhere((entry) => _string(entry, 'event') == name);
+
 List<web.Element> _scripts() {
   final web.NodeList nodes = web.document.querySelectorAll(_scriptSelector);
 
@@ -227,11 +231,58 @@ void main() {
         'count': 2,
       });
 
-      final JSObject entry = _dataLayer().last;
+      final JSObject entry = _eventEntry('monitor_created');
 
-      expect(_string(entry, 'event'), 'monitor_created');
       expect(_string(entry, 'monitor_type'), 'http');
       expect((entry['count']! as JSNumber).toDartInt, 2);
+    });
+
+    test('logEvent clears its own parameters after the event, so the next '
+        'event does not inherit them', () async {
+      await _driver().logEvent('monitor_created', <String, Object>{
+        'monitor_type': 'http',
+        'region_count': 3,
+      });
+
+      final JSObject cleanup = _dataLayer().last;
+
+      expect(cleanup.has('event'), isFalse);
+      expect(cleanup.has('monitor_type'), isTrue);
+      expect(cleanup['monitor_type'], isNull);
+      expect(cleanup.has('region_count'), isTrue);
+      expect(cleanup['region_count'], isNull);
+    });
+
+    test(
+      'logEvent restores a default parameter its own parameter shadowed',
+      () async {
+        final GtmWebDriver driver = _driver();
+
+        await driver.setDefaultParams(<String, Object?>{'plan': 'pro'});
+        await driver.logEvent('plan_changed', <String, Object>{'plan': 'none'});
+
+        expect(_string(_eventEntry('plan_changed'), 'plan'), 'none');
+        expect(_string(_dataLayer().last, 'plan'), 'pro');
+      },
+    );
+
+    test('logEvent clears a parameter whose default was removed', () async {
+      final GtmWebDriver driver = _driver();
+
+      await driver.setDefaultParams(<String, Object?>{'plan': 'pro'});
+      await driver.setDefaultParams(<String, Object?>{'plan': null});
+      await driver.logEvent('plan_changed', <String, Object>{'plan': 'none'});
+
+      final JSObject cleanup = _dataLayer().last;
+
+      expect(cleanup.has('plan'), isTrue);
+      expect(cleanup['plan'], isNull);
+    });
+
+    test('logEvent without parameters pushes only the event', () async {
+      await _driver().logEvent('onboarding_completed', <String, Object>{});
+
+      expect(_string(_dataLayer().last, 'event'), 'onboarding_completed');
     });
 
     test(

@@ -47,7 +47,7 @@ Requires Dart >=3.13, Flutter >=3.47 and `magic` ^1.0.0, with `firebase_core` an
 1. `ad_storage`, `ad_user_data` and `ad_personalization` are denied on every start; nothing grants them.
 2. The opt-out is in memory only. The host persists it and calls `Analytics.setOptOut` on every start, before the first page view.
 3. While opted out every call except `setOptOut`, `reset` and `clientId` is a no-op that reaches no driver.
-4. The web driver loads lazily on the first send, never on an opted-out device; opting out after load pushes a consent update. It pushes `user_properties` nested, default params flat, and builds `page_location` and `page_referrer` from the origin plus the pattern (the first referrer is the origin root). Before `gtm.start` it pre-seeds both fields with the origin alone, so the Google tag never reads a tokenised address bar.
+4. The web driver loads lazily on the first send, never on an opted-out device; opting out after load pushes a consent update. It pushes `user_properties` nested, default params flat, follows every `track` with a push that returns its parameter keys to their default or `null` (the data layer merges, so they would otherwise leak into later events), and builds `page_location` and `page_referrer` from the origin plus the pattern (the first referrer is the origin root). Before `gtm.start` it pre-seeds both fields with the origin alone, so the Google tag never reads a tokenised address bar.
 5. The Firebase driver turns collection on at first use unless opted out, and never calls `resetAnalyticsData`.
 
 ## Recipes
