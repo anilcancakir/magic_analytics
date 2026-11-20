@@ -1,0 +1,75 @@
+# magic_analytics
+
+> GA4 analytics for Magic Framework apps: one `Analytics` facade over Google Tag Manager on web (served from a first-party gateway path), Firebase on iOS and Android, and a null driver when nothing is configured. Emails and tokens are scrubbed, ads consent is always denied, and without IDs it does nothing.
+
+**Stack**: Flutter >=3.47.0 · Dart >=3.13.0 · `magic` ^1.0.0 · `firebase_core` ^5.2.0 and `firebase_analytics` ^13.1.0 (mobile only). No state management library, no mocking library.
+
+**Setup**:
+
+```bash
+flutter pub add magic_analytics
+dart run magic:dowel plugin:install magic_analytics
+```
+
+```dart
+import 'package:magic/magic.dart';
+import 'package:magic_analytics/magic_analytics.dart';
+import 'package:material_ui/material_ui.dart';
+
+import 'config/analytics.dart'; // published by plugin:install
+
+Future<void> main() async {
+  await Magic.init(
+    configFactories: [
+      () => analyticsConfig,
+      // Keep every other config factory your main() already passes.
+    ],
+  );
+
+  runApp(MagicApplication(title: 'My App'));
+}
+```
+
+The installer publishes `lib/config/analytics.dart` (reads `ANALYTICS_ENABLED`, `GTM_CONTAINER_ID`, `GTM_GATEWAY_PATH` from `.env`; `firebase_options` is `null`), registers `AnalyticsServiceProvider` in `lib/config/app.dart` and adds `analyticsConfig` to the config factories. It writes no native file and sets up no web server.
+
+## API
+
+- `Analytics.track(name, [parameters])`, `screen(name, {location, referrer})`, `identify(userId)`, `setUserProperties(properties)`, `setDefaultParams(parameters)`, `setOptOut(bool)`, `isOptedOut`, `reset()`, `clientId()`: static facade. Every call returns a future that never fails.
+- `Analytics.fake()` returns a `FakeAnalytics`; `Analytics.unfake()` removes it.
+- `AnalyticsManager(driver)`: validates against GA4 limits (assert in debug, drop with a log in release), scrubs, gates on opt-out and sends in call order. Constants `maxNameLength` 40, `maxParameters` 25, `maxParameterValueLength` 100, `maxUserPropertyNameLength` 24, `maxUserPropertyValueLength` 36, `maxUserIdLength` 256.
+- `AnalyticsServiceProvider(app)`: `register()` binds `analytics`; `boot()` adds `AnalyticsNavigatorObserver` and resets analytics when the signed-in user signs out or changes.
+- `AnalyticsDriver`: the transport contract. `GtmWebDriver` (web), `FirebaseDriver` (iOS, Android), `NullDriver`; `createAnalyticsDriver(config)` picks one by platform.
+- `AnalyticsNavigatorObserver`: a page view per named page, titled and located by the route pattern.
+- `UrlScrubber.scrub(text)`: masks secret query values, route-bound token segments and email addresses as `[Filtered]`.
+- `FakeAnalytics`, `RecordedAnalyticsCall`, `RecordedCallKind`: the recording driver, `assertTracked`, `assertNotTracked`, `assertNothingSent`, `events`, `screens`, `calls`.
+
+## Platforms
+
+Web through GTM, iOS and Android through Firebase. Firebase is never initialised on web. The web driver needs a first-party path proxied to `GTM-XXXXXXX.fps.goog`; iOS and Android need `flutterfire configure --platforms=ios,android` and the native keys that keep collection off and ads denied (listed in the installation guide).
+
+## Rules for agents
+
+- Register `AnalyticsServiceProvider` in the `providers` list, after the error reporting providers, so the observer is added before the router builds its config.
+- Call `Analytics.identify` with the user's UUID, never an email; the provider never identifies anyone.
+- `setDefaultParams` replaces the set and carries team facts; `setUserProperties` is user-level only. `reset()` nulls all of them and runs on sign-out or user change.
+- Send strings and numbers only, within the GA4 limits. Never put an email, token or code in a parameter, title or id.
+- Never serve GTM from `googletagmanager.com`: set both `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`, and proxy the path to `GTM-XXXXXXX.fps.goog`. Set `send_page_view` to `false` in the container.
+- Leave `firebase_options` `null` on web; never initialise Firebase there.
+- Ads consent is always denied; nothing grants it. The opt-out is in memory: persist it and call `Analytics.setOptOut` before the first page view.
+- In tests call `Analytics.fake()` after the provider registers and inside `testWidgets` bodies, and `Analytics.unfake()` plus `MagicRouter.reset()` in `tearDown`.
+
+## Docs
+
+- [Installation](https://anilcancakir.com/magic/docs/analytics/getting-started/installation.md): installer, config keys, web gateway, native keys.
+- [Facade and Provider](https://anilcancakir.com/magic/docs/analytics/basics/facade-and-provider.md): the calls, GA4 limits, what the provider wires.
+- [Drivers](https://anilcancakir.com/magic/docs/analytics/basics/drivers.md): GTM, Firebase, null, and how to write one.
+- [Consent and Opt-Out](https://anilcancakir.com/magic/docs/analytics/basics/consent-and-opt-out.md): ads denied, the device opt-out.
+- [Testing](https://anilcancakir.com/magic/docs/analytics/guides/testing.md): `Analytics.fake()` and the recorded calls.
+- [URL Scrubbing](https://anilcancakir.com/magic/docs/analytics/guides/url-scrubbing.md): the three rules and where they run.
+
+## Links
+
+- [README](https://github.com/anilcancakir/magic_analytics/blob/master/README.md): install, capabilities, the agent rules table.
+- [API reference](https://pub.dev/documentation/magic_analytics/latest/): generated from the doc comments.
+- [Changelog](https://github.com/anilcancakir/magic_analytics/blob/master/CHANGELOG.md): what changed in each version.
+- [Source](https://github.com/anilcancakir/magic_analytics): issues and pull requests.

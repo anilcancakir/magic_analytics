@@ -1,0 +1,25 @@
+name: magic_analytics_example
+description: Registers AnalyticsServiceProvider and sends events, a user id and an opt-out from buttons.
+publish_to: 'none'
+
+environment:
+  sdk: ">=3.13.0 <4.0.0"
+  flutter: ">=3.47.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  magic: ^1.0.0
+  magic_analytics:
+    path: ../
+  material_ui: ^1.11.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env

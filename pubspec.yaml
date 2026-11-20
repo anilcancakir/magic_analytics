@@ -21,6 +21,7 @@ dependencies:
   # The floor is 1.0.0, the first stable release, which moved the optional
   # layers out of core into plugins.
   magic: ^1.0.0
+  dowel: ^1.0.0
   firebase_core: ^5.2.0
   firebase_analytics: ^13.1.0
   web: ^1.1.2

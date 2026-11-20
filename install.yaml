@@ -1,0 +1,88 @@
+# magic_analytics install manifest (PluginInstaller DSL schema v1).
+#
+# Analytics is a Magic-side plugin: install publishes lib/config/analytics.dart
+# from the bundled stub, registers AnalyticsServiceProvider into the
+# consumer's lib/config/app.dart providers list, and injects the
+# analyticsConfig factory into lib/main.dart so the Magic container has the
+# `analytics` config the provider reads.
+#
+# No native keys are written at install time. The iOS and Android entries
+# that keep Firebase collection off until the driver enables it, and the
+# Firebase options file, belong to the host app and to `flutterfire configure`,
+# so post_install lists them for a person to apply. The web gateway is a
+# server setting and cannot be installed from here at all.
+#
+# See doc/plugins/install-yaml.md (in dowel) for the full schema.
+
+plugin_name: magic_analytics
+
+publish:
+  install/analytics_config: lib/config/analytics.dart
+
+magic:
+  provider: AnalyticsServiceProvider
+  config_factory: analyticsConfig
+
+post_install:
+  message: |
+    magic_analytics installed. Analytics stays off until you set the keys.
+
+    1. Add the config factory to the configFactories list in lib/main.dart,
+       if the installer did not:
+
+         await Magic.init(
+           configFactories: [
+             () => analyticsConfig, // from config/analytics.dart
+             // Keep every other config factory your main() already passes.
+           ],
+         );
+
+    2. AnalyticsServiceProvider was added to lib/config/app.dart's providers
+       list. Keep it after your error reporting providers:
+
+         (app) => AnalyticsServiceProvider(app),
+
+       The app decides who the user is: call Analytics.identify with an
+       opaque id (a UUID), never an email. Persist the user's opt-out
+       yourself and call Analytics.setOptOut before the first page view.
+
+    3. Web: serve Google Tag Manager from a path on your own domain, never
+       from googletagmanager.com. Proxy a first-party gateway path to
+       GTM-XXXXXXX.fps.goog (Google tag gateway) in your web server, then set
+       in .env:
+
+         ANALYTICS_ENABLED=true
+         GTM_CONTAINER_ID=GTM-XXXXXXX
+         GTM_GATEWAY_PATH=/your-gateway-path
+
+       The container loads only when both GTM keys are set, and only after
+       the first event on a device that has not opted out.
+
+    4. iOS and Android: run
+
+         flutterfire configure --platforms=ios,android
+
+       then set 'firebase_options' in lib/config/analytics.dart to
+       () => DefaultFirebaseOptions.currentPlatform. Leave it null on web:
+       Firebase is never initialised there.
+
+    5. Native keys, so nothing is collected before the driver enables it and
+       ads stay denied.
+
+       iOS, in Info.plist:
+
+         FIREBASE_ANALYTICS_COLLECTION_ENABLED                    false
+         FirebaseAutomaticScreenReportingEnabled                  false
+         GOOGLE_ANALYTICS_DEFAULT_ALLOW_ANALYTICS_STORAGE         true
+         GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_STORAGE                false
+         GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_USER_DATA              false
+         GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_PERSONALIZATION_SIGNALS false
+
+       Android, as <meta-data> inside <application> in AndroidManifest.xml:
+
+         firebase_analytics_collection_enabled                    false
+         google_analytics_automatic_screen_reporting_enabled      false
+         google_analytics_default_allow_analytics_storage         true
+         google_analytics_default_allow_ad_storage                false
+         google_analytics_default_allow_ad_user_data              false
+         google_analytics_default_allow_ad_personalization_signals false
