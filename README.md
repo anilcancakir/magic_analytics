@@ -47,7 +47,6 @@ The installer publishes `lib/config/analytics.dart` (your own editable copy that
 
 ```dart
 import 'package:magic/magic.dart';
-import 'package:magic_analytics/magic_analytics.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'config/analytics.dart'; // published by plugin:install
@@ -86,11 +85,28 @@ Future<void> afterSignIn(String userUuid, String teamPlan) async {
 | `setDefaultParams(parameters)` | Replaces the parameters sent with every event |
 | `reset()` | Nulls the user id, the user properties and the defaults; keeps the client id |
 
-GA4 limits are asserted in debug and the call is dropped with a log in release: names of 40 characters, 25 parameters, string values of 100, user property names of 24 and values of 36. Every call returns a future that never fails.
+GA4 limits: names of 40 characters, 25 parameters with the defaults, string values of 100, user property names of 24 and values of 36. A call that breaks one throws an `AssertionError` in debug and is dropped with a log line in release. A driver failure is logged and never reaches the caller: the returned future always completes.
 
 ## Page views
 
-`AnalyticsServiceProvider` adds an observer to `MagicRouter` that reports each named page by its route PATTERN (`/monitors/:id`, never `/monitors/42`), as title and location. No id, token or email leaves, and every monitor's page counts as one page. The provider also resets analytics when the signed-in user signs out or changes.
+`AnalyticsServiceProvider` adds an observer to `MagicRouter` that reports each named page with its route name as the title (the pattern when the route has no name) and its route pattern (`/monitors/:id`, never `/monitors/42`) as the location. No id, token or email leaves, and every monitor's page counts as one page. The provider also resets analytics when the signed-in user signs out or changes.
+
+A view the router does not see (a tab inside one page, say) goes through `screen` by hand:
+
+```dart
+import 'package:magic_analytics/magic_analytics.dart';
+
+Future<void> onTabChanged(String tab) {
+  return Analytics.screen('monitor_$tab', location: '/monitors/:id/$tab');
+}
+```
+
+| Navigation | Page view |
+|------------|-----------|
+| Push or replace a named page | Yes: title is the route name, location its path pattern, referrer the previous location |
+| Pop back to a named page | Yes, for the page revealed |
+| A dialog, bottom sheet or other unnamed route | No |
+| Closing a dialog | No: the page below is the same view |
 
 ## Web and mobile
 
@@ -104,7 +120,23 @@ On web, proxy a first-party path to your container's `GTM-XXXXXXX.fps.goog` host
 
 ## Consent
 
-`ad_storage`, `ad_user_data` and `ad_personalization` are denied on every start and nothing grants them. A device can opt out with `Analytics.setOptOut(true)`. The opt-out is held in memory: persist it and call `setOptOut` before the first page view.
+`ad_storage`, `ad_user_data` and `ad_personalization` are denied on every start and nothing grants them. A device can opt out with `Analytics.setOptOut(true)`. The opt-out is held in memory, so persist it yourself and call `setOptOut` before the first page view:
+
+```dart
+import 'package:magic_analytics/magic_analytics.dart';
+
+// `storedOptOut` is the value your app saved when the user chose.
+Future<void> restoreOptOut(bool storedOptOut) {
+  return Analytics.setOptOut(storedOptOut);
+}
+```
+
+| While opted out | Behaviour |
+|-----------------|-----------|
+| `track`, `screen`, `identify`, `setUserProperties`, `setDefaultParams` | No-op; nothing reaches the driver |
+| `setOptOut`, `reset`, `clientId` | Still run |
+| Web | A container not yet loaded stays unloaded; a loaded one gets `analytics_storage` denied |
+| iOS, Android | Firebase collection is turned off |
 
 ## Testing
 
@@ -125,7 +157,16 @@ void main() {
 }
 ```
 
-Call `Analytics.fake()` after the provider registers, and inside the body of a `testWidgets` test.
+The fake sits behind the real manager, so it records only what passed validation, scrubbing and the opt-out gate.
+
+| Member | Use |
+|--------|-----|
+| `assertTracked(name)`, `assertNotTracked(name)` | Whether an event was sent |
+| `assertNothingSent()` | No call reached the driver |
+| `events`, `screens`, `calls` | The recorded calls, each with the user id, user properties and defaults held at that moment |
+| `userId`, `userProperties`, `defaultParams`, `optedOut` | The identity the driver holds now |
+
+Call `Analytics.fake()` after the provider registers, since `register()` replaces an earlier fake. In a `testWidgets` test call it inside the body, not in `setUp`: the send queue needs the widget test's zone.
 
 ## For AI coding agents
 
@@ -140,7 +181,7 @@ Rules for an agent writing code against this package. Each one is a mistake the 
 | Leave `firebase_options` `null` on web | Firebase is never initialised there |
 | Persist the opt-out and call `setOptOut` before the first page view | It is in memory only |
 | Send strings and numbers inside the GA4 limits | A call that breaks one fails an assert in debug and is dropped in release |
-| Call `Analytics.fake()` after the provider registers and inside `testWidgets` bodies | `register()` would replace an earlier fake, and the send queue needs the widget test's zone |
+| Call `Analytics.fake()` after the provider registers, and inside the body (not `setUp`) of a `testWidgets` test | `register()` would replace an earlier fake, and the send queue needs the widget test's zone |
 
 ## Dependencies
 

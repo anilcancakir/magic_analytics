@@ -22,7 +22,7 @@ dart run magic:dowel plugin:install magic_analytics
 
 The installer reads the package's `install.yaml`, publishes `lib/config/analytics.dart` (your own copy, free to edit), injects `AnalyticsServiceProvider` into the `providers` list of `lib/config/app.dart` and adds `analyticsConfig` to the config factories of `lib/main.dart`. It writes no native file and cannot set up your web server: the steps below are yours.
 
-Nothing is sent until you set the keys. With `ANALYTICS_ENABLED` anything but `true`, the provider binds a driver that sends nothing.
+Nothing is sent until you set the keys. Unless `ANALYTICS_ENABLED` is `true`, `1` or `yes`, the provider binds a driver that sends nothing.
 
 <a name="requirements"></a>
 ## Requirements
@@ -42,7 +42,6 @@ Add the config factory to the list `Magic.init` receives, and keep every factory
 
 ```dart
 import 'package:magic/magic.dart';
-import 'package:magic_analytics/magic_analytics.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'config/analytics.dart'; // published by plugin:install
@@ -79,7 +78,7 @@ final List<Object> providers = [
 
 | Key | Default | Purpose |
 |:----|:--------|:--------|
-| `ANALYTICS_ENABLED` | `false` | The master switch. Anything but `true` keeps the driver that sends nothing. |
+| `ANALYTICS_ENABLED` | `false` | The master switch. Only `true`, `1` or `yes` enable a real driver; any other value keeps the one that sends nothing. |
 | `GTM_CONTAINER_ID` | `''` | The container, `GTM-XXXXXXX`. Web only. |
 | `GTM_GATEWAY_PATH` | `''` | The first-party path that serves the container, such as `/metrics`. Web only. |
 

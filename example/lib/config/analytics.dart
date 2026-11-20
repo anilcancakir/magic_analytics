@@ -2,10 +2,10 @@ import 'package:magic/magic.dart';
 
 /// Analytics configuration, read by `magic_analytics`.
 ///
-/// Everything is off until you set the keys: with `ANALYTICS_ENABLED` anything
-/// but true the package binds a driver that sends nothing, and on web the GTM
-/// container only loads once BOTH `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`
-/// are set, so it is never fetched from Google's own host.
+/// Everything is off until you set the keys: unless `ANALYTICS_ENABLED` is
+/// `true`, `1` or `yes`, the package binds a driver that sends nothing; on
+/// web the GTM container only loads once BOTH `GTM_CONTAINER_ID` and
+/// `GTM_GATEWAY_PATH` are set, so it is never fetched from Google's own host.
 ///
 /// Through [Env.filled], not [env]: a present-but-blank key (`KEY=""`) must
 /// read as nothing, never as the two-character string `""`.

@@ -38,7 +38,7 @@ Future<void> afterSignIn(String userUuid, String teamPlan) async {
 | `Analytics.reset()` | Forgets the signed-in user |
 | `Analytics.clientId()` | The GA4 client id, or `null` |
 
-Every call returns a future that never fails: await it in a test, ignore it in app code.
+Every call returns a future that never fails: await it in a test, ignore it in app code. A GA4 limit violation is the one exception, in debug only (see [Order and Failure](#order-and-failure)).
 
 <a name="events-and-parameters"></a>
 ## Events and Parameters
@@ -92,7 +92,7 @@ The reset follows `Auth.stateNotifier` and compares the user id, so a team switc
 <a name="page-views"></a>
 ## Page Views
 
-`AnalyticsNavigatorObserver` reports a page view each time a named page comes to the top. Magic names a page by its route name or its path PATTERN, so the title is `/monitors/:id`, never `/monitors/42`, and the location is the pattern too: no id, token or email in either, and every monitor's page counts as one page. A page without a name (a dialog, a bottom sheet) is not a page view, and closing one does not report the page beneath again. The previous page's pattern is the next page's referrer.
+`AnalyticsNavigatorObserver` reports a page view each time a named page comes to the top. Magic names a page by its route name, or by its path pattern when the route has no name, and that name is the title; the location is always the pattern (`/monitors/:id`, never `/monitors/42`): no id, token or email in either, and every monitor's page counts as one page. A page without a name (a dialog, a bottom sheet) is not a page view, and closing one does not report the page beneath again. The previous page's pattern is the next page's referrer.
 
 <a name="gotchas"></a>
 ## Gotchas

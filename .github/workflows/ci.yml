@@ -37,6 +37,11 @@ jobs:
       - name: Run tests
         run: flutter test --coverage
 
+      # GtmWebDriver's tests are @TestOn('browser'), so the VM run above skips
+      # them; they hold the consent and page-field guarantees.
+      - name: Run browser tests
+        run: flutter test --platform chrome test/drivers/gtm_web_driver_test.dart
+
       - name: Upload coverage
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
