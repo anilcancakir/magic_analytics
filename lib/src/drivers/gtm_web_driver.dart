@@ -240,8 +240,10 @@ class GtmWebDriver implements AnalyticsDriver {
       }
 
       if (entry.key == 'user_properties' && value is Map<String, Object?>) {
+        // A flat value held under the same key is replaced, not merged into.
+        final Object? previous = _held['user_properties'];
         final Map<String, Object> properties = <String, Object>{
-          ...?_held['user_properties'] as Map<String, Object>?,
+          if (previous is Map<String, Object>) ...previous,
         };
 
         for (final MapEntry<String, Object?> property in value.entries) {

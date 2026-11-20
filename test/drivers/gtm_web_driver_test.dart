@@ -339,6 +339,26 @@ void main() {
       },
     );
 
+    test(
+      'setUserProperty replaces a flat user_properties value held before it',
+      () async {
+        final GtmWebDriver driver = _driver();
+
+        await driver.setDefaultParams(<String, Object?>{
+          'user_properties': 'flat',
+        });
+        await driver.setUserProperty('locale', 'tr');
+        await driver.logEvent('shared_link', <String, Object>{
+          'user_properties': 'event',
+        });
+
+        expect(
+          _string(_object(_dataLayer().last, 'user_properties'), 'locale'),
+          'tr',
+        );
+      },
+    );
+
     test('logEvent clears a parameter whose default was removed', () async {
       final GtmWebDriver driver = _driver();
 
