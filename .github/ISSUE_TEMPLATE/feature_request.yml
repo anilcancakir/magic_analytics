@@ -1,0 +1,62 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for magic_analytics
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for magic_analytics? I would like to hear it. This package
+        stays generic on purpose: it knows no app's model, team or plan. If the
+        idea is specific to one app, say how it would reach the package through
+        the facade (`Analytics.track`, `setUserProperties`, `setDefaultParams`)
+        rather than a concept of its own.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The Problem
+      description: What are you unable to do today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Facade (Analytics)
+        - GTM web driver
+        - Firebase driver
+        - Navigator observer
+        - URL scrubbing
+        - Consent and opt-out
+        - Service provider / install
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: sketch
+    attributes:
+      label: API Sketch
+      description: |
+        Optional, but it helps. For example:
+
+        Analytics.track('report_exported', {'format': 'csv'});
+      render: dart
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Case
+      placeholder: "When a user exports a report, I need..."
+    validations:
+      required: true

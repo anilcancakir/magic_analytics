@@ -1,0 +1,34 @@
+# AI Development & Documentation
+.claude/
+CLAUDE.md
+.mcp.json
+skills/
+tool/
+
+# IDEs
+.idea/
+.vscode/
+.cursor/
+*.iml
+
+# CI/CD
+.github/
+
+# Development
+# A .pubignore replaces .gitignore for this directory rather than adding to
+# it, so every local-only file .gitignore keeps out has to be named here too.
+pubspec_overrides.yaml
+pubspec.lock
+.ac/
+coverage/
+.dart_tool/packages
+.packages
+build/
+
+# Environment: the root .env only; example/.env is a bundled asset of the example
+/.env
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
