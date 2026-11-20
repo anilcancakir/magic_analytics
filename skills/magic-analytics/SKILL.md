@@ -24,7 +24,7 @@ Requires Dart >=3.13, Flutter >=3.47 and `magic` ^1.0.0, with `firebase_core` an
 
 1. `ANALYTICS_ENABLED` anything but `true` binds `NullDriver`. The web driver needs BOTH `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`, so a container is never requested from `googletagmanager.com`. The mobile driver needs `firebase_options` to be a `FirebaseOptions Function()`.
 2. Read the keys through `Env.filled`, which treats `KEY=""` as nothing. `Env` reads the bundled `.env`, not `--dart-define`.
-3. Web gateway: proxy a first-party path to `GTM-XXXXXXX.fps.goog` (Google tag gateway), never `googletagmanager.com`. The container's GA4 configuration sets `send_page_view` to `false`: the driver pushes each page view itself.
+3. Web gateway: proxy a first-party path to `GTM-XXXXXXX.fps.goog` (Google tag gateway), never `googletagmanager.com`. The container's GA4 configuration sets `send_page_view` to `false`: the driver pushes each page view itself. The Google tag alone sends no custom event: the container also needs a GA4 Event tag (event name `{{Event}}`) on a Custom Event trigger, version 2 data layer variables for `page_location`, `page_referrer`, `page_title`, `user_id`, the default params and `user_properties.<name>`, a shared Event Settings Variable, and "Require additional consent: `analytics_storage`" on both tags so an opted-out user sends no cookieless pings (see `doc/basics/drivers.md`, Container Setup).
 4. Mobile: run `flutterfire configure --platforms=ios,android`, set `'firebase_options': () => DefaultFirebaseOptions.currentPlatform`, and leave it `null` on web. Firebase is never initialised on web.
 5. Native keys keep collection off until the driver enables it and ads denied. iOS `Info.plist`: `FIREBASE_ANALYTICS_COLLECTION_ENABLED` false, `FirebaseAutomaticScreenReportingEnabled` false, `GOOGLE_ANALYTICS_DEFAULT_ALLOW_ANALYTICS_STORAGE` true, and `GOOGLE_ANALYTICS_DEFAULT_ALLOW_AD_STORAGE`, `..._AD_USER_DATA`, `..._AD_PERSONALIZATION_SIGNALS` false. Android `<meta-data>`: `firebase_analytics_collection_enabled` false, `google_analytics_automatic_screen_reporting_enabled` false, `google_analytics_default_allow_analytics_storage` true, and `google_analytics_default_allow_ad_storage`, `..._ad_user_data`, `..._ad_personalization_signals` false.
 
@@ -47,7 +47,7 @@ Requires Dart >=3.13, Flutter >=3.47 and `magic` ^1.0.0, with `firebase_core` an
 1. `ad_storage`, `ad_user_data` and `ad_personalization` are denied on every start; nothing grants them.
 2. The opt-out is in memory only. The host persists it and calls `Analytics.setOptOut` on every start, before the first page view.
 3. While opted out every call except `setOptOut`, `reset` and `clientId` is a no-op that reaches no driver.
-4. The web driver loads lazily on the first send, never on an opted-out device; opting out after load pushes a consent update. It pushes `user_properties` nested, default params flat, and builds `page_location` from the origin plus the pattern.
+4. The web driver loads lazily on the first send, never on an opted-out device; opting out after load pushes a consent update. It pushes `user_properties` nested, default params flat, and builds `page_location` and `page_referrer` from the origin plus the pattern (the first referrer is the origin root). Before `gtm.start` it pre-seeds both fields with the origin alone, so the Google tag never reads a tokenised address bar.
 5. The Firebase driver turns collection on at first use unless opted out, and never calls `resetAnalyticsData`.
 
 ## Recipes

@@ -56,6 +56,8 @@ While a device is opted out, every call except `setOptOut`, `reset` and `clientI
 
 The Firebase driver never calls `resetAnalyticsData`: opting out keeps the app instance id, so opting back in is the same device.
 
+The web opt-out only holds if the container honours the consent update. Set "Require additional consent for tag to fire" with `analytics_storage` on both the Google tag and the GA4 Event tag, as [Drivers](drivers.md#container-setup) lists; otherwise a denied tag still sends cookieless pings. Before the first page view the driver also pre-seeds `page_location` and `page_referrer` with the origin alone, so the tag never reads the address bar, which may carry a token.
+
 <a name="gotchas"></a>
 ## Gotchas
 
@@ -64,6 +66,7 @@ The Firebase driver never calls `resetAnalyticsData`: opting out keeps the app i
 | Calling `setOptOut` after the first page view | Restore the stored choice during boot, before the router renders |
 | Assuming the package remembers the choice | It is in memory only; persist it and set it on every start |
 | Reading `isOptedOut` before restoring | It is `false` until `setOptOut` is called |
+| Opted-out web users still appear in GA4 | Require `analytics_storage` on both container tags, or the Google tag sends cookieless pings |
 | Trying to grant `ad_storage` | There is no switch; ads are denied by design |
 
 <a name="related-documentation"></a>

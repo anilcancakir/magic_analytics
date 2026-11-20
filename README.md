@@ -100,7 +100,7 @@ GA4 limits are asserted in debug and the call is dropped with a log in release: 
 | iOS, Android | `FirebaseDriver` | Initialises Firebase on first use, enables collection unless opted out, never calls `resetAnalyticsData` |
 | Not configured | `NullDriver` | Sends nothing |
 
-On web, proxy a first-party path to your container's `GTM-XXXXXXX.fps.goog` host (Google tag gateway); the container is never requested from `googletagmanager.com`. On mobile, run `flutterfire configure --platforms=ios,android` and set `firebase_options` in the config.
+On web, proxy a first-party path to your container's `GTM-XXXXXXX.fps.goog` host (Google tag gateway); the container is never requested from `googletagmanager.com`. The container itself needs a GA4 Event tag on a Custom Event trigger (event name `{{Event}}`), data layer variables for the page and user fields, and `analytics_storage` required on both tags; the Drivers doc lists them. On mobile, run `flutterfire configure --platforms=ios,android` and set `firebase_options` in the config.
 
 ## Consent
 

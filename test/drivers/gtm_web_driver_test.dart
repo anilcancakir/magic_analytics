@@ -91,7 +91,7 @@ void main() {
         expect(_string(defaults, 'ad_storage'), 'denied');
         expect(_string(defaults, 'ad_user_data'), 'denied');
         expect(_string(defaults, 'ad_personalization'), 'denied');
-        expect(_string(layer[1], 'event'), 'gtm.js');
+        expect(_string(layer[2], 'event'), 'gtm.js');
 
         final List<web.Element> scripts = _scripts();
 
@@ -113,6 +113,50 @@ void main() {
         expect(_scripts().last.getAttribute('src'), _loaderSrc);
       });
     }
+
+    test(
+      'pre-seeds origin-only page fields before the container initialises',
+      () async {
+        final String originalPath =
+            '${web.window.location.pathname}${web.window.location.search}';
+
+        addTearDown(
+          () => web.window.history.replaceState(null, '', originalPath),
+        );
+        web.window.history.replaceState(
+          null,
+          '',
+          '/reset-password/secret-path-token?token=abc123&email=a%40b.co',
+        );
+
+        await _driver().logEvent('monitor_created', <String, Object>{});
+
+        final List<JSObject> layer = _dataLayer();
+        final int seedIndex = layer.indexWhere(
+          (entry) =>
+              _tagOf(entry) != '[object Arguments]' &&
+              entry.has('page_location'),
+        );
+        final int loaderIndex = layer.indexWhere(
+          (entry) => _string(entry, 'event') == 'gtm.js',
+        );
+        final String origin = web.window.location.origin;
+
+        expect(seedIndex, isNonNegative);
+        expect(seedIndex, lessThan(loaderIndex));
+        expect(layer[seedIndex].has('event'), isFalse);
+        expect(_string(layer[seedIndex], 'page_location'), '$origin/');
+        expect(_string(layer[seedIndex], 'page_referrer'), '$origin/');
+
+        for (final String key in <String>['page_location', 'page_referrer']) {
+          final String value = _string(layer[seedIndex], key)!;
+
+          expect(value, isNot(contains('secret-path-token')));
+          expect(value, isNot(contains('token=')));
+          expect(value, isNot(contains('@')));
+        }
+      },
+    );
 
     test('loads once however many drivers send', () async {
       await _driver().logEvent('first', <String, Object>{});
@@ -209,13 +253,14 @@ void main() {
       },
     );
 
-    test('logScreen falls back to the origin root', () async {
+    test('logScreen falls back to the origin root for both fields', () async {
       await _driver().logScreen(name: 'home');
 
       final JSObject entry = _dataLayer().last;
+      final String origin = web.window.location.origin;
 
-      expect(_string(entry, 'page_location'), '${web.window.location.origin}/');
-      expect(entry['page_referrer'], isNull);
+      expect(_string(entry, 'page_location'), '$origin/');
+      expect(_string(entry, 'page_referrer'), '$origin/');
     });
 
     test('setUserId and setUserProperty push user-level keys', () async {

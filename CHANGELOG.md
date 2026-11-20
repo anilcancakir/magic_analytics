@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **`GtmWebDriver` pre-seeds origin-only page fields.** The bootstrap pushes `page_location` and `page_referrer` as the origin root before `gtm.js`, so the Google tag never falls back to a tokenised `document.location` before the first page view. (`lib/src/drivers/gtm_web_driver.dart`)
+- **The first page view carries the origin root as `page_referrer`.** It was `null`, which let gtag fall back to `document.referrer`. (`lib/src/drivers/gtm_web_driver.dart`)
+- **The pubspec description no longer claims consent is denied by default.** Analytics storage is granted by default; only ad signals are always denied. (`pubspec.yaml`)
+- **The drivers and consent docs list the container setup.** A GA4 Event tag, data layer variables, a shared Event Settings Variable and `analytics_storage` required on both tags. (`doc/basics/drivers.md`, `doc/basics/consent-and-opt-out.md`)
+
 ### Added
 
 - **Package scaffold.** Repository files, workflows and the docs gate required by the package standard. (`pubspec.yaml`, `.github/`, `tool/check-docs.py`)

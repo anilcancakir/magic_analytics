@@ -13,11 +13,14 @@ import 'analytics_driver.dart';
 /// `setUserProperty`, `setDefaultParams`), so a device that opted out never
 /// loads the container and never gets a `dataLayer`. Then, in order: an inline
 /// script defines `window.dataLayer` and the canonical `gtag` shim, defaults
-/// consent (analytics granted, every ad signal denied) and pushes `gtm.start`;
-/// only after that the loader `<script async src="/<gateway>/?id=<id>">` is
-/// appended. The shim is real JavaScript on purpose: GTM ignores a consent
-/// command pushed as a plain array or object, it needs the `arguments`
-/// object `gtag()` pushes.
+/// consent (analytics granted, every ad signal denied), pre-seeds
+/// `page_location` and `page_referrer` with the origin alone and pushes
+/// `gtm.start`; only after that the loader
+/// `<script async src="/<gateway>/?id=<id>">` is appended. The shim is real
+/// JavaScript on purpose: GTM ignores a consent command pushed as a plain
+/// array or object, it needs the `arguments` object `gtag()` pushes. The
+/// pre-seed keeps the Google tag from falling back to the real
+/// `document.location`, which may carry a token, before the first page view.
 ///
 /// DATA LAYER SHAPE, read by the data layer variables the container defines
 /// (its GA4 config sets `send_page_view` to false):
@@ -25,6 +28,7 @@ import 'analytics_driver.dart';
 /// - `logScreen`: `{event: 'page_view', page_title, page_location,
 ///   page_referrer}`, both locations built from the route PATTERN on the
 ///   page's origin, so the real URL (which may carry a token) never leaves.
+///   The first page's referrer is the origin root, never null.
 /// - `logEvent`: `{event: <name>, ...parameters}`.
 /// - `setUserId`: `{user_id: <id or null>}`.
 /// - `setUserProperty`: `{user_properties: {<name>: <value or null>}}`,
@@ -67,6 +71,11 @@ class GtmWebDriver implements AnalyticsDriver {
   static const String _marker = 'data-magic-analytics';
 
   // Consent for ads is never granted: no config or call may flip these.
+  //
+  // The page fields are pre-seeded with the origin only: until the first
+  // page view is pushed, a data layer variable bound to `page_location` would
+  // be undefined and the Google tag would fall back to `document.location`,
+  // which can carry a reset token or an invitation path.
   static const String _bootstrap = '''
 (function () {
   window.dataLayer = window.dataLayer || [];
@@ -77,6 +86,10 @@ class GtmWebDriver implements AnalyticsDriver {
     ad_storage: 'denied',
     ad_user_data: 'denied',
     ad_personalization: 'denied'
+  });
+  window.dataLayer.push({
+    page_location: location.origin + '/',
+    page_referrer: location.origin + '/'
   });
   window.dataLayer.push({'gtm.start': Date.now(), event: 'gtm.js'});
 })();
@@ -111,7 +124,8 @@ class GtmWebDriver implements AnalyticsDriver {
       'event': 'page_view',
       'page_title': name,
       'page_location': _onOrigin(location ?? '/'),
-      'page_referrer': referrer == null ? null : _onOrigin(referrer),
+      // Never null: gtag would fall back to `document.referrer`.
+      'page_referrer': _onOrigin(referrer ?? '/'),
     });
   }
 

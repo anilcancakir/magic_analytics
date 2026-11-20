@@ -1,5 +1,5 @@
 name: magic_analytics
-description: "Analytics for Magic apps: GA4 through GTM on web, Firebase on iOS and Android, one Analytics facade. Consent denied by default, inert without IDs."
+description: "Analytics for Magic apps: GA4 through GTM on web, Firebase on iOS and Android, one Analytics facade. Ad signals always denied, inert without IDs."
 version: 1.0.0
 homepage: https://anilcancakir.com/magic/analytics
 repository: https://github.com/anilcancakir/magic_analytics

@@ -5,6 +5,7 @@ Three drivers sit behind the facade: Google Tag Manager on web, Firebase on iOS 
 - [Quick Reference](#quick-reference)
 - [Picking the Driver](#picking-the-driver)
 - [Web Driver](#web-driver)
+- [Container Setup](#container-setup)
 - [Firebase Driver](#firebase-driver)
 - [Null Driver](#null-driver)
 - [Writing a Driver](#writing-a-driver)
@@ -34,13 +35,13 @@ Without `analytics.enabled: true` the provider skips all of this and binds `Null
 
 `GtmWebDriver` loads a Google Tag Manager container from your first-party gateway path and feeds GA4 through it.
 
-**Lazy load.** Nothing touches the page until the first call that sends something, so a device that opted out never loads the container and never gets a `dataLayer`. Then, in order: an inline script defines `window.dataLayer` and the `gtag` shim, defaults consent (analytics granted, every ad signal denied) and pushes `gtm.start`; only after that is the loader `<script async src="/<gateway>/?id=<id>">` appended. The shim is real JavaScript on purpose: GTM ignores a consent command pushed as a plain array or object.
+**Lazy load.** Nothing touches the page until the first call that sends something, so a device that opted out never loads the container and never gets a `dataLayer`. Then, in order: an inline script defines `window.dataLayer` and the `gtag` shim, defaults consent (analytics granted, every ad signal denied), pre-seeds the page fields (below) and pushes `gtm.start`; only after that is the loader `<script async src="/<gateway>/?id=<id>">` appended. The shim is real JavaScript on purpose: GTM ignores a consent command pushed as a plain array or object.
 
 **What each call pushes** to the data layer your container's variables read:
 
 | Call | Data layer push |
 |:-----|:----------------|
-| `screen` | `{event: 'page_view', page_title, page_location, page_referrer}`, the locations built from the origin and the route pattern |
+| `screen` | `{event: 'page_view', page_title, page_location, page_referrer}`, the locations built from the origin and the route pattern; the first page's referrer is the origin root, never `null` |
 | `track` | `{event: <name>, ...parameters}` |
 | `identify` | `{user_id: <id>}`; `null` on reset |
 | `setUserProperties` | `{user_properties: {<name>: <value>}}`, nested |
@@ -48,7 +49,27 @@ Without `analytics.enabled: true` the provider skips all of this and binds `Null
 
 `page_location` is the page's origin plus the route PATTERN, so the real URL, which may carry a token, never leaves. The container's GA4 configuration must set `send_page_view` to `false`, because this driver pushes the page views itself.
 
+**Origin-only pre-seed.** Before `gtm.start`, the bootstrap pushes `{page_location: <origin>/, page_referrer: <origin>/}`. Until the first page view is pushed, a data layer variable bound to `page_location` would be undefined and the Google tag would fall back to the real `document.location`, which can carry a reset token or an invitation path. The seed carries the origin alone, so no path or query is ever read from the address bar.
+
 A set of removals (`reset`, a `null` user id, a `null` property) only pushes when the container is already loaded, so it never loads one. `clientId()` reads the `_ga` cookie and is `null` until the container has set it.
+
+<a name="container-setup"></a>
+## Container Setup
+
+The Google tag alone sends none of the driver's events: it only configures the property. The container needs these pieces for an event to reach GA4.
+
+| Piece | Setting |
+|:------|:--------|
+| Data Layer Variables, version 2 | One each for `page_location`, `page_referrer`, `page_title`, `user_id`, every key you pass to `Analytics.setDefaultParams` (for example `team_plan`) and `user_properties.<name>` for each key you pass to `Analytics.setUserProperties` |
+| Event Settings Variable | A Google tag Event Settings Variable that maps `page_location`, `page_referrer`, `page_title` and `user_id` to those variables and lists the default params and user properties; both tags below use it |
+| Google tag | The measurement ID, `send_page_view` set to `false`, the Event Settings Variable |
+| GA4 Event tag | Event name `{{Event}}`, the Event Settings Variable, and one Event Parameter per event key you want reported |
+| Trigger | A Custom Event trigger with event name `.*` and regex matching on, excluding events whose name starts with `gtm.` |
+| Consent | Both tags, under Advanced Settings, Consent Settings: "Require additional consent for tag to fire" with `analytics_storage` |
+
+`{{Event}}` is the built-in variable for the `event` key, so one tag reports every `Analytics.track` name and the `page_view` the driver pushes. Sharing the Event Settings Variable between the Google tag and the event tag sets the page fields on every event, not only on the first.
+
+Requiring `analytics_storage` on both tags matters for opt-out: without it, a Google tag whose consent is denied still sends cookieless pings. With it, an opted-out device sends nothing after the driver's consent update.
 
 <a name="firebase-driver"></a>
 ## Firebase Driver
@@ -121,6 +142,8 @@ Bind a manager over it with `app.singleton('analytics', () => AnalyticsManager(L
 |:--------|:----|
 | A container served from `googletagmanager.com` | Set `gtm.gateway_path`; without it the web driver is the null driver |
 | Leaving `send_page_view` on in the GA4 configuration | Set it to `false`; the driver pushes each page view and a second source double counts |
+| A container with only the Google tag | Add the GA4 Event tag on a Custom Event trigger, or no custom event reaches GA4 |
+| Tags without `analytics_storage` required | Require it on both, or an opted-out device still sends cookieless pings |
 | Initialising Firebase on web | Never; leave `firebase_options` `null` there |
 | Expecting the web driver to send before the first event | It loads lazily, so the network tab is empty until then |
 | `firebase_options` set to a value, not a function | It must be `() => DefaultFirebaseOptions.currentPlatform` |

@@ -53,7 +53,7 @@ Web through GTM, iOS and Android through Firebase. Firebase is never initialised
 - Call `Analytics.identify` with the user's UUID, never an email; the provider never identifies anyone.
 - `setDefaultParams` replaces the set and carries team facts; `setUserProperties` is user-level only. `reset()` nulls all of them and runs on sign-out or user change.
 - Send strings and numbers only, within the GA4 limits. Never put an email, token or code in a parameter, title or id.
-- Never serve GTM from `googletagmanager.com`: set both `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`, and proxy the path to `GTM-XXXXXXX.fps.goog`. Set `send_page_view` to `false` in the container.
+- Never serve GTM from `googletagmanager.com`: set both `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`, and proxy the path to `GTM-XXXXXXX.fps.goog`. Set `send_page_view` to `false` in the container, and add a GA4 Event tag (event name `{{Event}}`) on a Custom Event trigger with data layer variables, a shared Event Settings Variable and `analytics_storage` required on both tags: the Google tag alone sends no custom event.
 - Leave `firebase_options` `null` on web; never initialise Firebase there.
 - Ads consent is always denied; nothing grants it. The opt-out is in memory: persist it and call `Analytics.setOptOut` before the first page view.
 - In tests call `Analytics.fake()` after the provider registers and inside `testWidgets` bodies, and `Analytics.unfake()` plus `MagicRouter.reset()` in `tearDown`.
