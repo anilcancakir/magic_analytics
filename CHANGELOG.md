@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-20
+
 ### Added
 
 - **Package scaffold.** Repository files, workflows and the docs gate required by the package standard. (`pubspec.yaml`, `.github/`, `tool/check-docs.py`)
