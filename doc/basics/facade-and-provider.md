@@ -38,7 +38,7 @@ Future<void> afterSignIn(String userUuid, String teamPlan) async {
 | `Analytics.reset()` | Forgets the signed-in user |
 | `Analytics.clientId()` | The GA4 client id, or `null` |
 
-Every call returns a future that never fails: await it in a test, ignore it in app code.
+Every call returns a future that never fails: await it in a test, ignore it in app code. A GA4 limit violation is the one exception, in debug only (see [Order and Failure](#order-and-failure)).
 
 <a name="events-and-parameters"></a>
 ## Events and Parameters

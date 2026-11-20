@@ -7,7 +7,7 @@ when_to_use: "Use when code imports package:magic_analytics or touches Analytics
 
 # magic_analytics
 
-GA4 for a Magic app through one `Analytics` facade. On web a Google Tag Manager container is loaded from a first-party gateway path; on iOS and Android events go through Firebase; with no IDs a null driver sends nothing. Every string is scrubbed of emails and tokens before it leaves, ads consent is always denied and the package is inert until the host sets its keys. It is generic on purpose: no user model, team or event of its own.
+GA4 for a Magic app through one `Analytics` facade. On web a Google Tag Manager container is loaded from a first-party gateway path; on iOS and Android events go through Firebase; with no IDs a null driver sends nothing. Every parameter value, page title and location is scrubbed of emails and tokens before it leaves (an identifying user id is refused instead), ads consent is always denied and the package is inert until the host sets its keys. It is generic on purpose: no user model, team or event of its own.
 
 This skill covers `magic_analytics` only. The Magic framework (container, facades, routing, `Auth`) is the `magic-framework` skill, and GA4, GTM and Firebase themselves are Google's documentation.
 
@@ -22,7 +22,7 @@ Requires Dart >=3.13, Flutter >=3.47 and `magic` ^1.0.0, with `firebase_core` an
 
 ## Config rules
 
-1. `ANALYTICS_ENABLED` anything but `true` binds `NullDriver`. The web driver needs BOTH `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`, so a container is never requested from `googletagmanager.com`. The mobile driver needs `firebase_options` to be a `FirebaseOptions Function()`.
+1. `ANALYTICS_ENABLED` other than `true`, `1` or `yes` binds `NullDriver`. The web driver needs both `GTM_CONTAINER_ID` and `GTM_GATEWAY_PATH`, so a container is never requested from `googletagmanager.com`. The mobile driver needs `firebase_options` to be a `FirebaseOptions Function()`.
 2. Read the keys through `Env.filled`, which treats `KEY=""` as nothing. `Env` reads the bundled `.env`, not `--dart-define`.
 3. Web gateway: proxy a first-party path to `GTM-XXXXXXX.fps.goog` (Google tag gateway), never `googletagmanager.com`. The container's GA4 configuration sets `send_page_view` to `false`: the driver pushes each page view itself. The Google tag alone sends no custom event: the container also needs a GA4 Event tag (event name `{{Event}}`) on a Custom Event trigger, version 2 data layer variables for `page_location`, `page_referrer`, `page_title`, `user_id`, the default params and `user_properties.<name>`, a shared Event Settings Variable, and "Require additional consent: `analytics_storage`" on both tags so an opted-out user sends no cookieless pings (see `doc/basics/drivers.md`, Container Setup).
 4. Mobile: run `flutterfire configure --platforms=ios,android`, set `'firebase_options': () => DefaultFirebaseOptions.currentPlatform`, and leave it `null` on web. Firebase is never initialised on web.
@@ -32,14 +32,14 @@ Requires Dart >=3.13, Flutter >=3.47 and `magic` ^1.0.0, with `firebase_core` an
 
 1. Register `AnalyticsServiceProvider` in the `providers` list of `lib/config/app.dart`, after the error reporting providers. `boot()` adds the page view observer to `MagicRouter`, which refuses one after it has built its `routerConfig`.
 2. The provider resets analytics when the signed-in user signs out or changes, keyed on the user id, so a team switch keeps the identity. It never identifies anyone: call `Analytics.identify` yourself with the user's UUID, never an email.
-3. `AnalyticsNavigatorObserver` reports the route PATTERN (`/monitors/:id`) as title and location, so no id or token leaves. A page without a name is not a page view.
+3. `AnalyticsNavigatorObserver` reports the route pattern (`/monitors/:id`, never `/monitors/42`) as title and location, so no id or token leaves. A page without a name is not a page view.
 
 ## Facade rules
 
-1. `setDefaultParams` REPLACES the set; team facts (a plan, a size) go here, sent with every event. `setUserProperties` is user-level only. Pass every default you want kept.
+1. `setDefaultParams` replaces the whole set; team facts (a plan, a size) go here, sent with every event. `setUserProperties` is user-level only. Pass every default you want kept.
 2. `reset()` nulls the user id, every user property and every default parameter, and never rotates the client id. Run it on sign-out or a user change; the provider already does.
 3. GA4 limits are asserted in debug and the call is dropped with a log in release: names 40 characters, letters, digits and underscores, no `ga_`, `google_` or `firebase_` prefix; 25 parameters with defaults; string values 100 characters; user property name 24 and value 36; user id 256. Values are strings or numbers.
-4. Every call returns a future that never fails; a driver error is logged, never thrown into UI flow. Calls run in order on a queue.
+4. Every call returns a future that never fails; a driver error is logged, never thrown into UI flow. The one exception is a GA4 limit violation, which throws an `AssertionError` in debug (dropped with a log in release). Calls run in order on a queue.
 5. Never send an email, token or code as a parameter, title or user id. String values are scrubbed (`UrlScrubber`) and `identify` refuses an id the scrubber would change, but a secret in free text is not recognisable.
 
 ## Consent rules
@@ -56,7 +56,6 @@ Wire the app:
 
 ```dart
 import 'package:magic/magic.dart';
-import 'package:magic_analytics/magic_analytics.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'config/analytics.dart'; // published by plugin:install

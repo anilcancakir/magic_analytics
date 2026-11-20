@@ -2,7 +2,7 @@
 
 > GA4 analytics for Magic Framework apps: one `Analytics` facade over Google Tag Manager on web (served from a first-party gateway path), Firebase on iOS and Android, and a null driver when nothing is configured. Emails and tokens are scrubbed, ads consent is always denied, and without IDs it does nothing.
 
-**Stack**: Flutter >=3.47.0 · Dart >=3.13.0 · `magic` ^1.0.0 · `firebase_core` ^5.2.0 and `firebase_analytics` ^13.1.0 (mobile only). No state management library, no mocking library.
+**Stack**: Flutter >=3.47.0 · Dart >=3.13.0 · `magic` ^1.0.0 · `firebase_core` ^5.2.0 and `firebase_analytics` ^13.1.0 (mobile only) · `web` ^1.1.2 (GTM driver) · `dowel` ^1.0.0 (runs the installer). No state management library, no mocking library.
 
 **Setup**:
 
@@ -13,7 +13,6 @@ dart run magic:dowel plugin:install magic_analytics
 
 ```dart
 import 'package:magic/magic.dart';
-import 'package:magic_analytics/magic_analytics.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'config/analytics.dart'; // published by plugin:install
@@ -34,7 +33,7 @@ The installer publishes `lib/config/analytics.dart` (reads `ANALYTICS_ENABLED`, 
 
 ## API
 
-- `Analytics.track(name, [parameters])`, `screen(name, {location, referrer})`, `identify(userId)`, `setUserProperties(properties)`, `setDefaultParams(parameters)`, `setOptOut(bool)`, `isOptedOut`, `reset()`, `clientId()`: static facade. Every call returns a future that never fails.
+- `Analytics.track(name, [parameters])`, `screen(name, {location, referrer})`, `identify(userId)`, `setUserProperties(properties)`, `setDefaultParams(parameters)`, `setOptOut(bool)`, `isOptedOut`, `reset()`, `clientId()`: static facade. Every call returns a future that never fails; only a GA4 limit violation throws, as an `AssertionError` in debug (dropped with a log in release).
 - `Analytics.fake()` returns a `FakeAnalytics`; `Analytics.unfake()` removes it.
 - `AnalyticsManager(driver)`: validates against GA4 limits (assert in debug, drop with a log in release), scrubs, gates on opt-out and sends in call order. Constants `maxNameLength` 40, `maxParameters` 25, `maxParameterValueLength` 100, `maxUserPropertyNameLength` 24, `maxUserPropertyValueLength` 36, `maxUserIdLength` 256.
 - `AnalyticsServiceProvider(app)`: `register()` binds `analytics`; `boot()` adds `AnalyticsNavigatorObserver` and resets analytics when the signed-in user signs out or changes.
