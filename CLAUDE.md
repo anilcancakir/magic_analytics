@@ -4,7 +4,7 @@
 
 Analytics for the Magic Framework: one `Analytics` facade over a GTM driver on web (GA4 through a first-party gateway path), a Firebase driver on iOS and Android, and a null driver when nothing is configured. Consent for ads is always denied; the package is inert until the host sets its IDs.
 
-**Version:** 1.0.0 · **Dart:** >=3.13.0 · **Flutter:** >=3.47.0
+**Version:** 1.0.1 · **Dart:** >=3.13.0 · **Flutter:** >=3.47.0
 
 ## Commands
 
@@ -77,7 +77,7 @@ Red, green, refactor for every feature, fix or refactor: no production code with
 ## Release
 
 1. Open a `release:` PR that bumps `pubspec.yaml`, `skills/magic-analytics/SKILL.md` and the `Version:` line above, and promotes `[Unreleased]` in `CHANGELOG.md`.
-2. After it merges, tag the merge commit with the bare version (`git tag 1.0.0 <merge-sha> && git push origin 1.0.0`, no `v`). `publish.yml` runs from the tag; the pub.dev Admin tab holds repository `anilcancakir/magic_analytics`, tag pattern `{{version}}` and push events only.
+2. After it merges, tag the merge commit with the bare version (`git tag <version> <merge-sha> && git push origin <version>`, no `v`). `publish.yml` runs from the tag; the pub.dev Admin tab holds repository `anilcancakir/magic_analytics`, tag pattern `{{version}}` and push events only.
 3. A failed `Validate` is fixed forward: delete the tag (`git push --delete origin <tag>` and `git tag -d <tag>`), fix it on a PR and tag the new merge commit. If only `github-release` fails after pub.dev accepted the version, use "Re-run failed jobs" (never "Re-run all jobs"). By hand instead: `gh release create <tag> --title <tag> --verify-tag --notes-file <file>` with `--latest` for a stable tag or `--prerelease` for one with a `-` suffix (as the `github-release` job does), then, for a stable tag only, `gh workflow run dispatch-to-registry.yml --ref <tag>`, because the skipped `registry` job does not resume on its own. When `gh release view <tag>` shows the release already exists (the job lost the response), skip the create and only dispatch.
 
 ## CI

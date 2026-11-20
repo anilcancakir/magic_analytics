@@ -1,7 +1,7 @@
 ---
 name: magic-analytics
 description: "Send GA4 analytics from a Magic app: GTM on web, Firebase on mobile, one Analytics facade, ad signals always denied."
-version: 1.0.0
+version: 1.0.1
 when_to_use: "Use when code imports package:magic_analytics or touches Analytics, AnalyticsServiceProvider or analyticsConfig in a Magic app."
 ---
 
