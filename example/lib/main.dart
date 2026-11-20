@@ -6,15 +6,11 @@ import 'config/analytics.dart';
 
 Future<void> main() async {
   await Magic.init(
-    configFactories: [
-      () => analyticsConfig,
-    ],
+    configFactories: [() => analyticsConfig],
     configs: [
       {
         'app': {
-          'providers': [
-            (app) => AnalyticsServiceProvider(app),
-          ],
+          'providers': [(app) => AnalyticsServiceProvider(app)],
         },
       },
     ],
@@ -52,9 +48,8 @@ class _ExampleAppState extends State<ExampleApp> {
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => Analytics.track('example_clicked', {
-                  'button': 'track',
-                }),
+                onPressed: () =>
+                    Analytics.track('example_clicked', {'button': 'track'}),
                 child: const Text('Track an event'),
               ),
               const SizedBox(height: 8),
@@ -70,9 +65,7 @@ class _ExampleAppState extends State<ExampleApp> {
                   await Analytics.setOptOut(!Analytics.isOptedOut);
                   setState(() {});
                 },
-                child: Text(
-                  Analytics.isOptedOut ? 'Opt back in' : 'Opt out',
-                ),
+                child: Text(Analytics.isOptedOut ? 'Opt back in' : 'Opt out'),
               ),
             ],
           ),
