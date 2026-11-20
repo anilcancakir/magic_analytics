@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/anilcancakir/magic_analytics/master/.github/magic-logo.svg" width="120" alt="Magic Logo" />
+  <img src="https://raw.githubusercontent.com/anilcancakir/magic_analytics/master/.github/logo.png" width="120" alt="Magic Analytics logo" />
 </p>
 
 <h1 align="center">Magic Analytics</h1>
